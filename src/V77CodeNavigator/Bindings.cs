@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace V77CodeNavigator;
 
-internal enum NavAction { Definition, Variable, Occurrences, Methods, Line, Bookmark, NextBookmark, Back, Forward, FilterMethods, MethodStart, SelectMethod, CopyLine, SelectLine, InspectMethod, RefreshWindow, SelectAll, MethodEnd }
+internal enum NavAction { Definition, Variable, Occurrences, Methods, Line, Bookmark, NextBookmark, Back, Forward, FilterMethods, MethodStart, SelectMethod, CopyLine, SelectLine, InspectMethod, RefreshWindow, SelectAll, MethodEnd, SignatureHelp, CompleteName }
 
 internal sealed class Bindings
 {
@@ -19,9 +19,11 @@ internal sealed class Bindings
         [NavAction.InspectMethod]=Keys.Control|Keys.Alt|Keys.I,
         [NavAction.RefreshWindow]=Keys.Control|Keys.Alt|Keys.F5,
         [NavAction.SelectAll]=Keys.Control|Keys.Shift|Keys.A,
-        [NavAction.MethodEnd]=Keys.Control|Keys.Alt|Keys.Shift|Keys.M
+        [NavAction.MethodEnd]=Keys.Control|Keys.Alt|Keys.Shift|Keys.M,
+        [NavAction.SignatureHelp]=Keys.Control|Keys.Shift|Keys.P,
+        [NavAction.CompleteName]=Keys.Control|Keys.Space
     };
-    private static readonly string[] Labels={"Определение процедуры / функции","Объявление переменной","Строки с вхождениями слова","Список процедур и функций","Перейти к строке","Поставить / снять закладку","Следующая закладка","Назад по переходам","Вперёд по переходам","Методы с фильтром","В начало текущего метода","Выделить текущий метод","Копировать текущую строку","Выделить текущую строку","Сведения о текущем методе","Перерисовать окно Конфигуратора","Выделить весь текст модуля","В конец текущего метода"};
+    private static readonly string[] Labels={"Определение процедуры / функции","Объявление переменной","Строки с вхождениями слова","Список процедур и функций","Перейти к строке","Поставить / снять закладку","Следующая закладка","Назад по переходам","Вперёд по переходам","Методы с фильтром","В начало текущего метода","Выделить текущий метод","Копировать текущую строку","Выделить текущую строку","Сведения о текущем методе","Перерисовать окно Конфигуратора","Выделить весь текст модуля","В конец текущего метода","Параметры функции или процедуры","Дополнить имя функции или процедуры"};
     private static string FileName => Path.Combine(Program.ProjectRoot(),"hotkeys.json");
     internal Bindings(bool useSaved=true)
     {
@@ -43,7 +45,7 @@ internal sealed class Bindings
     private static bool Supported(Keys k)
     {
         Keys code=k & Keys.KeyCode;
-        return (k & ~(Keys.KeyCode|Keys.Control|Keys.Alt|Keys.Shift))==0 && (code is >=Keys.F1 and <=Keys.F24 || ((k & (Keys.Control|Keys.Alt))!=0 && code is >=Keys.A and <=Keys.Z or Keys.Left or Keys.Right));
+        return (k & ~(Keys.KeyCode|Keys.Control|Keys.Alt|Keys.Shift))==0 && (code is >=Keys.F1 and <=Keys.F24 || ((k & (Keys.Control|Keys.Alt))!=0 && code is >=Keys.A and <=Keys.Z or Keys.Left or Keys.Right or Keys.Space));
     }
     internal void Edit(Form owner)
     {
@@ -59,7 +61,7 @@ internal sealed class Bindings
             box.KeyDown+=(_,e)=>{
                 e.SuppressKeyPress=true;
                 if(e.KeyCode==Keys.Back) next[action]=Keys.None;
-                else if(e.KeyCode is >=Keys.F1 and <=Keys.F24 || ((e.Control||e.Alt) && (e.KeyCode is >=Keys.A and <=Keys.Z or Keys.Left or Keys.Right))) next[action]=e.KeyData;
+                else if(e.KeyCode is >=Keys.F1 and <=Keys.F24 || ((e.Control||e.Alt) && (e.KeyCode is >=Keys.A and <=Keys.Z or Keys.Left or Keys.Right or Keys.Space))) next[action]=e.KeyData;
                 box.Text=Format(next[action]);
             };
             grid.Controls.Add(box,1,row);

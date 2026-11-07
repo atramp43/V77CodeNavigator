@@ -20,6 +20,23 @@ public static class ModuleParser
         return result;
     }
 
+    public static string Signature(string source, Declaration declaration)
+    {
+        var tokens = Scan(source[declaration.Offset..]).GetEnumerator();
+        using (tokens)
+        {
+            int depth = 0;
+            while (tokens.MoveNext())
+            {
+                var token = tokens.Current;
+                if (token.Value == "(") depth++;
+                if (token.Value == ")" && --depth == 0)
+                    return source.Substring(declaration.Offset, token.Offset + 1);
+            }
+        }
+        return declaration.Kind + " " + declaration.Name;
+    }
+
     public static IReadOnlyList<Declaration> Find(IReadOnlyList<Declaration> declarations, string name) =>
         declarations.Where(d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase)).ToArray();
 

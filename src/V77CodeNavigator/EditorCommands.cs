@@ -134,6 +134,8 @@ internal sealed partial class GlobalModuleJump
         }
 
         var source=await ReadModuleViaClipboard(origin);
+        if(action is NavAction.SignatureHelp or NavAction.CompleteName)
+            return ShowMethodHelp(origin,source,action==NavAction.CompleteName);
         if(action==NavAction.CopyLine)
         {
             var lines=source.ReplaceLineEndings("\n").Split('\n');
