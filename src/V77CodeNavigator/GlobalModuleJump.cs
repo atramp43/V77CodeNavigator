@@ -33,7 +33,7 @@ internal sealed partial class GlobalModuleJump : IDisposable
         hook=SetWindowsHookExW(13,callback,GetModuleHandle(null),0);
         if(hook==0) throw new System.ComponentModel.Win32Exception();
     }
-    public void Dispose(){if(hook!=0) UnhookWindowsHookEx(hook); hook=0;}
+    public void Dispose(){if(hook!=0) UnhookWindowsHookEx(hook); hook=0;CloseSignature();}
 
     private static bool Target(nint root,out nint focus,out uint pid)
     {
@@ -72,6 +72,7 @@ internal sealed partial class GlobalModuleJump : IDisposable
                     if(GetAsyncKeyState(16)<0) chord|=Keys.Shift;
                     if(GetAsyncKeyState(17)<0) chord|=Keys.Control;
                     if(GetAsyncKeyState(18)<0) chord|=Keys.Alt;
+                    if(!busy && signatureIndex!=null) ObserveSignatureKey(vk,chord,data);
                     if(!busy && bindings.Map.ContainsValue(chord))
                     {
                         var root=Native.GetForegroundWindow();

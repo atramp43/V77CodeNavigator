@@ -6,8 +6,9 @@ namespace V77CodeNavigator;
 
 internal sealed partial class GlobalModuleJump
 {
-    private static string ShowMethodHelp(Spot origin,string source,bool complete)
+    private string ShowMethodHelp(Spot origin,string source,bool complete)
     {
+        IndexSignatures(origin,source);
         var lines=source.ReplaceLineEndings("\n").Split('\n');
         if(origin.Line>lines.Length) return "Текущая строка недоступна.";
         var line=lines[origin.Line-1];
