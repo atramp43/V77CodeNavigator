@@ -33,7 +33,7 @@ internal sealed partial class GlobalModuleJump : IDisposable
         hook=SetWindowsHookExW(13,callback,GetModuleHandle(null),0);
         if(hook==0) throw new System.ComponentModel.Win32Exception();
     }
-    public void Dispose(){if(hook!=0) UnhookWindowsHookEx(hook); hook=0;CloseSignature();}
+    public void Dispose(){if(hook!=0) UnhookWindowsHookEx(hook); hook=0;CloseSignature();RestoreConfiguratorTitles();}
 
     private static bool Target(nint root,out nint focus,out uint pid)
     {
