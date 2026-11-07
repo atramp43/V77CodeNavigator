@@ -37,6 +37,7 @@ internal sealed partial class GlobalModuleJump
         return $"Конфигуратор: {exe}{Environment.NewLine}Не удалось прочитать окно «О программе».";
     }
 
+    private const string TitleMarker=" | База: ";
     private sealed record TitleDetails(uint Pid,string Suffix);
     private readonly Dictionary<nint,TitleDetails> configuratorTitles=new();
     private System.Windows.Forms.Timer? titleTimer;
@@ -45,8 +46,8 @@ internal sealed partial class GlobalModuleJump
     {
         if(configuratorTitles.TryGetValue(window,out var previous) && previous.Pid==pid)
             RemoveTitleSuffix(window,previous);
-        configuratorTitles[window]=new(pid,$" | База: {baseName} | {executable}");
-        RefreshConfiguratorTitles();
+        configuratorTitles[window]=new(pid,$"{TitleMarker}{baseName} | {executable}");
+        SetConfiguratorCaption(window,BaseCaption(Native.Caption(window))+configuratorTitles[window].Suffix);
         if(titleTimer!=null) return;
         titleTimer=new System.Windows.Forms.Timer{Interval=750};
         titleTimer.Tick+=(_,_)=>RefreshConfiguratorTitles();
@@ -64,8 +65,8 @@ internal sealed partial class GlobalModuleJump
                 continue;
             }
             string caption=Native.Caption(window);
-            if(caption.Length!=0 && !caption.EndsWith(details.Suffix,StringComparison.Ordinal))
-                SetConfiguratorCaption(window,caption+details.Suffix);
+            if(caption.Length!=0 && !caption.Contains(TitleMarker,StringComparison.Ordinal))
+                SetConfiguratorCaption(window,BaseCaption(caption)+details.Suffix);
         }
     }
 
@@ -74,8 +75,17 @@ internal sealed partial class GlobalModuleJump
         Native.GetWindowThreadProcessId(window,out uint actual);
         if(actual!=details.Pid) return;
         string caption=Native.Caption(window);
-        if(caption.EndsWith(details.Suffix,StringComparison.Ordinal))
-            SetConfiguratorCaption(window,caption[..^details.Suffix.Length]);
+        if(caption.Contains(TitleMarker,StringComparison.Ordinal))
+            SetConfiguratorCaption(window,BaseCaption(caption));
+    }
+
+    private static string BaseCaption(string caption)
+    {
+        int marker=caption.IndexOf(TitleMarker,StringComparison.Ordinal);
+        if(marker>=0) caption=caption[..marker];
+        // MFC appends the active document itself when the frame caption is set.
+        int document=caption.LastIndexOf(" - [",StringComparison.Ordinal);
+        return document>=0 && caption.EndsWith(']')?caption[..document]:caption;
     }
 
     private static void SetConfiguratorCaption(nint window,string caption)
