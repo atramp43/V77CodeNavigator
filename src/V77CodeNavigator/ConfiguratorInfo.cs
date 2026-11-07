@@ -41,13 +41,15 @@ internal sealed partial class GlobalModuleJump
     private static void ShowPathsDialog(nint root,string baseName,string exe,string basePath,string user)
     {
         using var dialog=new Form{Text=baseName.Length==0?"Сведения о Конфигураторе":$"Сведения о Конфигураторе — {baseName}",
-            ClientSize=new Size(760,220),MinimumSize=new Size(480,240),StartPosition=FormStartPosition.CenterParent,
+            ClientSize=new Size(760,240),MinimumSize=new Size(480,280),StartPosition=FormStartPosition.CenterParent,
             MinimizeBox=false,MaximizeBox=false,ShowInTaskbar=true,KeyPreview=true};
-        var grid=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=3,RowCount=5};
+        var grid=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=3,RowCount=6};
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
         grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-        var status=new Label{AutoSize=true,Anchor=AnchorStyles.Left};
+        var status=new Label{AutoSize=true,Anchor=AnchorStyles.Left,Margin=new Padding(3,8,3,3)};
+        using var tips=new ToolTip();
+        using var copyIcon=CreateCopyIcon();
         var fields=new (string Label,string Value)[]{("Путь к 1cv7.exe",exe),("Путь к базе",basePath),("Пользователь 1С",user)};
         var buttons=new Button[fields.Length];
         for(int row=0;row<fields.Length;row++)
@@ -57,8 +59,14 @@ internal sealed partial class GlobalModuleJump
             grid.Controls.Add(new Label{Text=label,AutoSize=true,Anchor=AnchorStyles.Left},0,row);
             grid.Controls.Add(new TextBox{Text=value,PlaceholderText="Недоступно",ReadOnly=true,
                 Dock=DockStyle.Fill,AccessibleName=label},1,row);
-            var copy=new Button{Text=$"Копировать (&{row+1})",AutoSize=true,Enabled=value.Length!=0,
+            var copy=new Button{Image=copyIcon,Size=new Size(36,30),Enabled=value.Length!=0,
                 AccessibleName=$"Копировать: {label}"};
+            tips.SetToolTip(copy,label switch
+            {
+                "Путь к 1cv7.exe"=>"Скопировать путь к запущенному 1cv7.exe",
+                "Путь к базе"=>"Скопировать путь к папке текущей базы",
+                _=>"Скопировать имя текущего пользователя 1С"
+            });
             copy.Click+=(_,_)=>{
                 try{Clipboard.SetText(value);status.Text=$"Скопировано: {label}";}
                 catch(ExternalException){status.Text="Буфер обмена занят. Повторите копирование.";}
@@ -66,12 +74,13 @@ internal sealed partial class GlobalModuleJump
             buttons[row]=copy;
             grid.Controls.Add(copy,2,row);
         }
-        grid.RowStyles.Add(new RowStyle(SizeType.Percent,100));
+        grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         grid.Controls.Add(status,0,3);
-        grid.SetColumnSpan(status,2);
+        grid.SetColumnSpan(status,3);
+        grid.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         var close=new Button{Text="Закрыть",AutoSize=true,Anchor=AnchorStyles.Right,DialogResult=DialogResult.Cancel};
-        grid.Controls.Add(close,2,4);
+        grid.Controls.Add(close,2,5);
         dialog.Controls.Add(grid);
         dialog.CancelButton=close;
         dialog.KeyDown+=(_,e)=>{
@@ -82,6 +91,17 @@ internal sealed partial class GlobalModuleJump
             }
         };
         dialog.ShowDialog(new DialogOwner(root));
+    }
+
+    private static Bitmap CreateCopyIcon()
+    {
+        var image=new Bitmap(20,20);
+        using var graphics=Graphics.FromImage(image);
+        graphics.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using var pen=new Pen(SystemColors.ControlText,1.5f);
+        graphics.DrawLines(pen,new Point[]{new(6,14),new(3,14),new(3,3),new(12,3),new(12,6)});
+        graphics.DrawRectangle(pen,7,7,10,10);
+        return image;
     }
 
     private const string TitleMarker=" | База: ";
