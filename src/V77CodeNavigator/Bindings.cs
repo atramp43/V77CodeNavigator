@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace V77CodeNavigator;
 
-internal enum NavAction { Definition, Variable, Occurrences, Methods, Line, Bookmark, NextBookmark, Back, Forward, FilterMethods, MethodStart, SelectMethod, CopyLine, SelectLine, InspectMethod, RefreshWindow, SelectAll, MethodEnd, SignatureHelp, CompleteName }
+internal enum NavAction { Definition, Variable, Occurrences, Methods, Line, Bookmark, NextBookmark, Back, Forward, FilterMethods, MethodStart, SelectMethod, CopyLine, SelectLine, InspectMethod, RefreshWindow, SelectAll, MethodEnd, SignatureHelp, CompleteName, ConfiguratorInfo }
 
 internal sealed class Bindings
 {
@@ -21,9 +21,10 @@ internal sealed class Bindings
         [NavAction.SelectAll]=Keys.Control|Keys.Shift|Keys.A,
         [NavAction.MethodEnd]=Keys.Control|Keys.Alt|Keys.Shift|Keys.M,
         [NavAction.SignatureHelp]=Keys.Control|Keys.Shift|Keys.P,
-        [NavAction.CompleteName]=Keys.Control|Keys.Space
+        [NavAction.CompleteName]=Keys.Control|Keys.Space,
+        [NavAction.ConfiguratorInfo]=Keys.Control|Keys.Alt|Keys.F6
     };
-    private static readonly string[] Labels={"Определение процедуры / функции","Объявление переменной","Строки с вхождениями слова","Список процедур и функций","Перейти к строке","Поставить / снять закладку","Следующая закладка","Назад по переходам","Вперёд по переходам","Методы с фильтром","В начало текущего метода","Выделить текущий метод","Копировать текущую строку","Выделить текущую строку","Сведения о текущем методе","Перерисовать окно Конфигуратора","Выделить весь текст модуля","В конец текущего метода","Параметры функции или процедуры","Дополнить имя функции или процедуры"};
+    private static readonly string[] Labels={"Определение процедуры / функции","Объявление переменной","Строки с вхождениями слова","Список процедур и функций","Перейти к строке","Поставить / снять закладку","Следующая закладка","Назад по переходам","Вперёд по переходам","Методы с фильтром","В начало текущего метода","Выделить текущий метод","Копировать текущую строку","Выделить текущую строку","Сведения о текущем методе","Перерисовать окно Конфигуратора","Выделить весь текст модуля","В конец текущего метода","Параметры функции или процедуры","Дополнить имя функции или процедуры","Пути Конфигуратора и текущей базы"};
     private static string FileName => Path.Combine(Program.ProjectRoot(),"hotkeys.json");
     internal Bindings(bool useSaved=true)
     {

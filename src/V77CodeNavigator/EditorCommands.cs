@@ -24,7 +24,7 @@ internal sealed partial class GlobalModuleJump
     [DllImport("user32.dll",CharSet=CharSet.Unicode)]
     private static extern int GetMenuString(nint menu,uint index,System.Text.StringBuilder text,int capacity,uint flags);
 
-    private static uint FindSelectAll(nint menu)
+    private static uint FindMenuCommand(nint menu,params string[] captions)
     {
         const uint byPosition=0x400;
         var label=new System.Text.StringBuilder(128);
@@ -33,15 +33,14 @@ internal sealed partial class GlobalModuleJump
             var child=GetSubMenu(menu,i);
             if(child!=0)
             {
-                var command=FindSelectAll(child);
+                var command=FindMenuCommand(child,captions);
                 if(command!=0) return command;
                 continue;
             }
             label.Clear();
             GetMenuString(menu,(uint)i,label,label.Capacity,byPosition);
             var caption=label.ToString().Split('\t')[0].Replace("&","").Replace('ё','е').Trim();
-            if(caption.Equals("Выделить все",StringComparison.OrdinalIgnoreCase) ||
-                caption.Equals("Select All",StringComparison.OrdinalIgnoreCase))
+            if(captions.Contains(caption,StringComparer.OrdinalIgnoreCase))
                 return GetMenuItemID(menu,i);
         }
         return 0;
@@ -51,7 +50,7 @@ internal sealed partial class GlobalModuleJump
     {
         CheckEditor(origin.Root,origin.Editor,origin.Pid);
         var menu=GetMenu(origin.Root);
-        var command=FindSelectAll(menu);
+        var command=FindMenuCommand(menu,"Выделить все","Select All");
         if(command==0 || (GetMenuState(menu,command,0)&3)!=0)
             throw new InvalidOperationException("Пункт «Выделить все» недоступен.");
         if(!PostMessageW(origin.Root,273,(nint)command,0))

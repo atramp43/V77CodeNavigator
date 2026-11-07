@@ -77,6 +77,16 @@ internal sealed partial class GlobalModuleJump : IDisposable
                     {
                         var root=Native.GetForegroundWindow();
                         var action=bindings.Map.First(pair=>pair.Value==chord).Key;
+                        if(action==NavAction.ConfiguratorInfo && IsConfiguratorWindow(root))
+                        {
+                            busy=true;down=vk;
+                            ui.BeginInvoke(new Action(async ()=>{
+                                try{show(await ShowConfiguratorInfo(root));}
+                                catch(Exception e){show(e.Message);}
+                                finally{busy=false;}
+                            }));
+                            return 1;
+                        }
                         if(action==NavAction.RefreshWindow && IsConfiguratorWindow(root))
                         {
                             down=vk;
@@ -89,7 +99,7 @@ internal sealed partial class GlobalModuleJump : IDisposable
                             }));
                             return 1;
                         }
-                        if(action!=NavAction.RefreshWindow && Target(root,out var editor,out var pid))
+                        if(action is not (NavAction.RefreshWindow or NavAction.ConfiguratorInfo) && Target(root,out var editor,out var pid))
                         {
                             busy=true;down=vk;
                             ui.BeginInvoke(new Action(async ()=>{try{show(await Jump(root,editor,pid,action));}catch(Exception e){show(e.Message);}finally{busy=false;}}));

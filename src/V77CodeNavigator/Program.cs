@@ -29,7 +29,7 @@ internal static class Program
     {
         for (var d = new DirectoryInfo(AppContext.BaseDirectory); d is not null; d = d.Parent)
             if (Directory.Exists(Path.Combine(d.FullName, "src", "V77CodeNavigator")) && Directory.Exists(Path.Combine(d.FullName, "logs"))) return d.FullName;
-        throw new DirectoryNotFoundException("Place the application under the V77CodeNavigator project directory (builds). Project root not found.");
+        return AppContext.BaseDirectory;
     }
 }
 
@@ -123,7 +123,7 @@ internal sealed class DiagnosticForm : Form
         FormClosing += (_, e) => { if (!capture.Enabled) e.Cancel = true; };
         open.Click += (_, _) =>
         {
-            try { Process.Start(new ProcessStartInfo("explorer.exe", Path.Combine(Program.ProjectRoot(), "logs")) { UseShellExecute = true }); }
+            try { Process.Start(new ProcessStartInfo("explorer.exe", Directory.CreateDirectory(Path.Combine(Program.ProjectRoot(), "logs")).FullName) { UseShellExecute = true }); }
             catch (Exception ex) { output.Text = ex.Message; }
         };
         output.Text = "Готово. По умолчанию содержимое модулей, UIA Name/Value и заголовки окон исключены.\r\nДля пробного перехода включите F12 и поставьте курсор внутри имени.";
