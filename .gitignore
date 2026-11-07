@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+.work/
+builds/
+logs/*
+!logs/.gitkeep
+
+CODEX_WORK/
+catalog/
+hotkeys.json
+navigator-settings.json
+__pycache__/

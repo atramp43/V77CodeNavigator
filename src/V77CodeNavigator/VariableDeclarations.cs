@@ -1,0 +1,24 @@
+using System.Text.RegularExpressions;
+
+namespace V77CodeNavigator;
+
+internal static class VariableDeclarations
+{
+    // One source line per native search hit. Match declarations and formal arguments,
+    // excluding comments, strings, array bounds and parameter default expressions.
+    internal static bool Matches(string source,string word)
+    {
+        string code=Regex.Replace(source,@"""(?:""""|[^""])*(?:""|$)|//.*"," ");
+        var options=RegexOptions.IgnoreCase|RegexOptions.CultureInvariant;
+        var variables=Regex.Match(code,@"^\s*(?:Перем|Var)\s+([^;]+)",options);
+        var parameters=Regex.Match(code,@"^\s*(?:Функция|Процедура|Function|Procedure)\s+[\w]+\s*\(([^)]*)",options);
+        var declaration=variables.Success?variables:parameters;
+        if(!declaration.Success) return false;
+        foreach(string part in declaration.Groups[1].Value.Split(','))
+        {
+            var name=Regex.Match(part,@"^\s*(?:(?:Знач|Val)\s+)?([\p{L}_][\w]*)",options);
+            if(name.Success && string.Equals(name.Groups[1].Value,word,StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+}

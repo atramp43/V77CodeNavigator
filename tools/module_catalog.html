@@ -1,0 +1,138 @@
+<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Каталог методов 1С</title>
+<style>*{box-sizing:border-box}body{margin:24px;color:#192f43;background:#f6f8fa;font:15px "Segoe UI",sans-serif}h1{font-size:26px}header{position:sticky;top:0;background:#f6f8fa;padding:10px 0;z-index:1}input,select{padding:6px;margin:3px}table{width:100%;border-collapse:collapse;background:white}td,th{padding:9px;border:1px solid #dae2e9;text-align:left;vertical-align:top;white-space:pre-line;overflow-wrap:anywhere}thead,.group{background:#dae7ee}.sig{display:block;font:12px Consolas,monospace;color:#435b70;margin-top:6px}small{color:#536576}table{min-width:1080px;table-layout:fixed}th:last-child{width:32%}.code{display:block;margin:0;max-height:15rem;overflow:auto;white-space:pre;overflow-wrap:normal;tab-size:4;background:#f7f9fc;color:#203148;padding:8px;font:13px/1.5 Consolas,monospace}.kw{color:#732da1;font-weight:bold}.str{color:#9a3d14}.comment{color:#30703c}.num{color:#165ea1}summary{cursor:pointer;color:#315575}details[open] summary{margin-bottom:5px}.copybar{display:flex;justify-content:flex-end;margin:4px 0}.copybtn{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border:1px solid #b5c7d4;border-radius:5px;background:white;color:#315575;cursor:pointer}.copybtn:hover{background:#eaf2f7}.relations{margin-top:6px}.relations ul{padding-left:1em;max-height:12rem;overflow:auto}.relations button{cursor:pointer;color:#205580;background:white;border:1px solid #bbcbd7;border-radius:4px;margin:2px}dialog{max-width:90vw;border:1px solid #9baeba;border-radius:8px}dialog pre{max-width:82vw;overflow:auto;padding:8px;background:#f6f8fa}dialog mark{background:#ffe89e}.method-target{outline:3px solid #37759b;outline-offset:-3px}a{color:#205580}#methodCard{width:min(54rem,90vw)}#methodCard dd{white-space:pre-line;margin-bottom:.6rem}#visitList{max-height:55vh;overflow:auto;padding:0;list-style:none}#visitList button{margin:2px;text-align:left}header button,dialog button{padding:5px 9px}</style>
+<h1>Каталог методов модуля</h1><p>Источник: <!--SOURCE-->. IN и OUT взяты из комментариев. В последнем столбце приведено описание результата или выражения из однострочных операторов возврата. Прочерк означает отсутствие сведений.</p>
+<header><label>Поиск <input id="q" placeholder="Имя или описание"></label> <label>Показать <select id="type"><option>Все методы</option><option>Функция</option><option>Процедура</option></select></label> <label>Группировка <select id="mode"><option value="group">По префиксу имени</option><option value="kind">По типу метода</option><option value="none">Без группировки</option></select></label> <button type="button" class="navBack" disabled>← Назад</button> <button type="button" class="navForward" disabled>Вперёд →</button> <button type="button" class="navHistory" disabled>История переходов</button> <strong id="count"></strong></header>
+<table><thead><tr><th>Метод и строка</th><th>Назначение</th><th>Вход (IN)</th><th>Выход (OUT)</th><th>Возвращаемый результат</th><th>Исходный текст</th></tr></thead><tbody id="body"></tbody></table>
+<dialog id="visits"><h3>История переходов</h3><ol id="visitList"></ol><form method="dialog"><button>Закрыть</button></form></dialog><dialog id="methodCard"><button type="button" class="navBack" disabled>← Назад</button> <button type="button" class="navForward" disabled>Вперёд →</button> <button type="button" class="navHistory" disabled>История переходов</button><h3 id="methodTitle"></h3><p id="methodSig"></p><dl id="methodDocs"></dl><form method="dialog"><button>Закрыть</button></form></dialog><dialog id="site"><h3 id="siteTitle"></h3><pre id="siteCode"></pre><form method="dialog"><button>Закрыть</button></form></dialog><script>const rows=/*DATA*/;const el=id=>document.getElementById(id);
+const modules=/*MODULES*/;
+const byLine=new Map(rows.map(r=>[r.line,r]));
+const visits=[];
+let position=-1;
+const filters=['q','type','mode'];
+function rememberRow(r){
+ const row=el('method-'+r.line);
+ return {r, label:r.name, filters:filters.map(id=>el(id).value),
+         expanded:Array.from(row.querySelectorAll('details'),d=>d.open)}
+}
+function updateNav(){
+ document.querySelectorAll('.navForward').forEach(b=>b.disabled=position+1>=visits.length);
+ document.querySelectorAll('.navBack').forEach(b=>b.disabled=position<1);
+ document.querySelectorAll('.navHistory').forEach(b=>b.disabled=!visits.length)
+}
+function follow(source,target,mod){
+ visits.splice(position+1);
+ const origin=rememberRow(source);
+ if(visits[position]?.r===source&&!visits[position].mod)visits[position]=origin;
+ else {visits.push(origin);position++}
+ if(mod){
+   showExternal(mod,target);
+   visits.push({...origin,r:target,mod,origin,label:mod.name+' · '+target.name})
+ }else{
+   showRow(target.line);visits.push(rememberRow(target))
+ }
+ position++;updateNav()
+}
+function revisit(index){
+ if(index<0||index>=visits.length)return;
+ for(const id of ['visits','methodCard'])if(el(id).open)el(id).close();
+ position=index;
+ const entry=visits[index],base=entry.origin||entry;
+ if(filters.some((id,i)=>el(id).value!==base.filters[i])){
+   filters.forEach((id,i)=>el(id).value=base.filters[i]);render()
+ }
+ const row=el('method-'+base.r.line);
+ row.querySelectorAll('details').forEach((d,i)=>d.open=base.expanded[i]);
+ showRow(base.r.line);
+ if(entry.mod)showExternal(entry.mod,entry.r);
+ updateNav()
+}
+document.querySelectorAll('.navForward').forEach(b=>b.onclick=()=>revisit(position+1));
+document.addEventListener('keydown', event=>{
+ if(!event.altKey||event.ctrlKey||event.shiftKey||event.metaKey||event.isComposing)return;
+ if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;
+ event.preventDefault();
+ if(!event.repeat&&!el('site').open)revisit(position+(event.key==='ArrowLeft'?-1:1))
+});
+
+document.querySelectorAll('.navBack').forEach(b=>b.onclick=()=>revisit(position-1));
+document.querySelectorAll('.navHistory').forEach(b=>b.onclick=()=>{
+ const list=el('visitList');list.replaceChildren();
+ for(let i=visits.length-1;i>=0;i--){
+   const item=document.createElement('li'),button=document.createElement('button');
+   button.textContent=visits[i].label+(i===position?' · текущее место':'');
+   button.onclick=()=>revisit(i);item.append(button);list.append(item)
+ }
+ el('visits').showModal()
+});
+el('methodCard').querySelector('form').onsubmit=e=>{e.preventDefault();revisit(position-1)};
+el('methodCard').oncancel=e=>{e.preventDefault();revisit(position-1)};
+function methodLink(name,fragment,open){
+ const link=document.createElement('a');link.textContent=name;link.href='#'+fragment;
+ link.onclick=event=>{event.preventDefault();open()};return link
+}
+function showRow(id){
+ const anchor='method-'+id;
+ if(!el(anchor)){el('q').value='';el('type').selectedIndex=0;render()}
+ const row=el(anchor);document.querySelector('.method-target')?.classList.remove('method-target');
+ row.classList.add('method-target');row.style.scrollMarginTop=(document.querySelector('header').offsetHeight+8)+'px';
+ row.tabIndex=-1;row.focus({preventScroll:true});row.scrollIntoView({block:'start'})
+}
+function showExternal(mod,r){
+ el('methodTitle').textContent=mod.name+' · '+r.kind+' '+r.name;
+ el('methodSig').textContent=r.signature+' · строка '+r.line;
+ const docs=el('methodDocs');docs.replaceChildren();
+ for(const [label,value] of [['Назначение',r.description],['Вход (IN)',r.inputs],['Выход (OUT)',r.outputs],['Возвращаемый результат',r.kind==='Процедура'?'Не применяется':r.result||r.returns.join(' | ')]]){const term=document.createElement('dt'),desc=document.createElement('dd');term.textContent=label;desc.textContent=value||'—';docs.append(term,desc)}
+ el('methodCard').showModal()
+}
+function relations(cell,r,key,title){
+ const grouped=new Map();for(const [id,line] of r[key]){if(!grouped.has(id))grouped.set(id,new Map());const sites=grouped.get(id);sites.set(line,(sites.get(line)||0)+1)}
+ const d=document.createElement('details'),head=document.createElement('summary');d.className='relations';
+  const ext=new Map();
+ if(key==='callers')for(const [mid,ctx,line] of r.external||[]){const id=mid+':'+ctx;if(!ext.has(id))ext.set(id,{mid,ctx,sites:new Map()});const sites=ext.get(id).sites;sites.set(line,(sites.get(line)||0)+1)}
+ head.textContent=title+' ('+(grouped.size+ext.size)+')';d.append(head);cell.append(d);
+ d.addEventListener('toggle',()=>{if(!d.open||d.children.length>1)return;
+ const ul=document.createElement('ul');if(!grouped.size&&!ext.size)ul.textContent='Прямых вызовов в методах этого модуля не найдено.';
+ for(const [id,sites] of grouped){const other=byLine.get(id),owner=key==='calls'?r:other,li=document.createElement('li');li.append(methodLink(other.name,'method-'+id,()=>follow(r,other)),' ');
+ for(const [line,n] of sites){const b=document.createElement('button');b.textContent='стр. '+line+(n>1?' ×'+n:'');b.onclick=()=>{
+ el('siteTitle').textContent=owner.name+' · строка '+line;const code=el('siteCode');code.replaceChildren();
+ const lines=owner.source.split('\n'),at=line-owner.line;for(let i=Math.max(0,at-3);i<=Math.min(lines.length-1,at+3);i++){const span=document.createElement(i===at?'mark':'span');span.textContent=(owner.line+i)+'  '+lines[i];code.append(span,'\n')}el('site').showModal()};li.append(b)} ul.append(li)}
+ for(const {mid,ctx,sites} of ext.values()){const mod=modules[mid],li=document.createElement('li');const method=mod.methods[ctx];li.append(mod.name+' · ',method?methodLink(ctx,'methodCard',()=>follow(r,method,mod)):ctx,' ');
+ for(const [line,n] of sites){const b=document.createElement('button');b.textContent='стр. '+line+(n>1?' ×'+n:'');b.onclick=()=>{
+ el('siteTitle').textContent=mod.name+' · '+ctx+' · строка '+line;const code=el('siteCode');code.replaceChildren();const [first,lines]=mod.sites[line];
+ lines.forEach((text,i)=>{const span=document.createElement(first+i===line?'mark':'span');span.textContent=(first+i)+'  '+text;code.append(span,'\n')});el('site').showModal()};li.append(b)}ul.append(li)}
+ d.append(ul)})
+}
+function codeCell(tr,r){
+ const cell=tr.insertCell(),details=document.createElement('details'),summary=document.createElement('summary');
+ const source=r.source||'';
+ summary.textContent='Код · строк: '+(source?source.split('\n').length:0);details.append(summary);cell.append(details);
+ details.addEventListener('toggle',()=>{if(!details.open||details.querySelector('pre'))return;
+ const pre=document.createElement('pre');pre.className='code';pre.tabIndex=0;pre.setAttribute('aria-label','Исходный текст '+r.name);
+ const keywords=new Set('function procedure endfunction endprocedure export var val if then elsif else endif for to do enddo while return break continue try except endtry goto and or not функция процедура конецфункции конецпроцедуры экспорт перем знач если тогда иначеесли иначе конецесли для по цикл конеццикла пока возврат прервать продолжить попытка исключение конецпопытки перейти и или не'.split(' '));
+ const tokens=/\/\/[^\n]*|"(?:[^"]|"")*(?:"|$)|'[0-9:. -]+'|[\p{L}_][\p{L}\p{N}_]*|\d+(?:\.\d+)?/gu;
+ let end=0;for(const match of source.matchAll(tokens)){const value=match[0];
+ const kind=value.startsWith('//')?'comment':value.startsWith('"')||value.startsWith("'")?'str':/^\d/.test(value)?'num':keywords.has(value.toLowerCase())?'kw':'';
+ if(!kind)continue;pre.append(source.slice(end,match.index));const span=document.createElement('span');span.className=kind;span.textContent=value;pre.append(span);end=match.index+value.length}
+ pre.append(source.slice(end));
+ const bar=document.createElement('div'),btn=document.createElement('button'),label=document.createElement('span');
+ bar.className='copybar';btn.className='copybtn';btn.type='button';label.setAttribute('aria-live','polite');
+ btn.innerHTML='<svg aria-hidden="true" width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="7" y="7" width="10" height="11" rx="2"/><path d="M12 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h1"/></svg>';
+ label.textContent='Копировать';btn.title='Копировать весь исходный текст: '+r.name;btn.append(label);bar.append(btn);
+ let reset;btn.onclick=async()=>{
+ clearTimeout(reset);let ok=false;
+ try{await navigator.clipboard.writeText(source);ok=true}catch{
+ const box=document.createElement('textarea');box.value=source;box.style.cssText='position:fixed;left:-10000px;top:0';document.body.append(box);
+ try{box.select();ok=document.execCommand('copy')}catch{}finally{box.remove();btn.focus({preventScroll:true})}}
+ label.textContent=ok?'Скопировано ✓':'Копирование недоступно';
+ reset=setTimeout(()=>label.textContent='Копировать',2200)};
+ details.append(bar,pre)})}
+function render(){const query=el('q').value.toLocaleLowerCase(),mode=el('mode').value,t=el('type').value;
+const found=rows.filter(r=>(t==='Все методы'||r.kind===t)&&(r.name+' '+r.description).toLocaleLowerCase().includes(query)).sort((a,b)=>(mode==='none'?0:a[mode].localeCompare(b[mode],'ru'))||a.name.localeCompare(b.name,'ru'));el('count').textContent=found.length+' из '+rows.length;const frag=document.createDocumentFragment();let prev;
+for(const r of found){if(mode!=='none'&&prev!==r[mode]){prev=r[mode];const h=document.createElement('tr'),c=h.insertCell();c.colSpan=6;c.className='group';c.textContent=prev;frag.append(h)}
+const tr=document.createElement('tr');tr.id='method-'+r.line;const c=tr.insertCell(),b=document.createElement('b');b.textContent=r.name;c.append(b);const s=document.createElement('span');s.className='sig';s.textContent=r.kind+' · строка '+r.line+'\n'+r.signature;c.append(s);relations(c,r,"callers","Где вызывается");relations(c,r,"calls","Что вызывает");
+for(const v of [r.description,r.inputs,r.outputs,r.kind==='Процедура'?'Не применяется':r.result||(r.returns.length?'В коде: '+r.returns.join(' | '):'')])tr.insertCell().textContent=v||'—';codeCell(tr,r);frag.append(tr)}el('body').replaceChildren(frag)}
+for(const id of ['q','type','mode'])el(id).oninput=render;render()</script></html>
+
+
+
+

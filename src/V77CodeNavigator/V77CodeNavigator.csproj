@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><Version>0.1.0</Version><OutputType>WinExe</OutputType><UseWindowsForms>true</UseWindowsForms><ApplicationManifest>app.manifest</ApplicationManifest></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../V77Navigator.Diagnostics/V77Navigator.Diagnostics.csproj" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Icons/*.png" /><None Update="Icons/LICENSE.txt" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
+</Project>
+
