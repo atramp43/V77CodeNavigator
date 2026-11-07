@@ -102,14 +102,23 @@ internal sealed class DiagnosticForm : Form
         window.DropDownItems.Add(Item("Выход","x-lg",Close));
         menu.Items.AddRange(new ToolStripItem[]{config,window});MainMenuStrip=menu;
         Resize+=(_,_)=>{if(WindowState==FormWindowState.Minimized && trayOption.Checked)HideInTray();};
-        var body=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=6,Padding=new Padding(12),AutoScroll=true};
+        var body=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=7,Padding=new Padding(12),AutoScroll=true};
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
-        for(int i=0;i<5;i++)body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        for(int i=0;i<6;i++)body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         body.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         var actions=new FlowLayoutPanel{Dock=DockStyle.Fill,AutoSize=true,WrapContents=true,AutoSizeMode=AutoSizeMode.GrowAndShrink};
         actions.Controls.AddRange(new Control[]{capture,open,keys});
         var hint=new Label{Text="После запуска сбора переключитесь в модуль 1С за 7 секунд.",AutoSize=true,Dock=DockStyle.Fill};
-        body.Controls.Add(actions,0,0);body.Controls.Add(hint,0,1);body.Controls.Add(pilot,0,2);body.Controls.Add(content,0,3);body.Controls.Add(trayOption,0,4);body.Controls.Add(output,0,5);
+        var brand=new TableLayoutPanel{AutoSize=true,Dock=DockStyle.Top,ColumnCount=2,RowCount=1,Margin=new Padding(3,0,3,8)};
+        brand.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        brand.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+        brand.Controls.Add(new PictureBox{Image=UiArt.Image("navigator-logo",48),SizeMode=PictureBoxSizeMode.Zoom,
+            Size=new Size(44,44),Margin=new Padding(0,0,10,0),TabStop=false},0,0);
+        var brandFont=new Font(Font.FontFamily,16,FontStyle.Bold);
+        brand.Controls.Add(new Label{Text="V77CodeNavigator",Font=brandFont,AutoSize=true,Anchor=AnchorStyles.Left},1,0);
+        FormClosed+=(_,_)=>brandFont.Dispose();
+        body.Controls.Add(brand,0,0);
+        body.Controls.Add(actions,0,1);body.Controls.Add(hint,0,2);body.Controls.Add(pilot,0,3);body.Controls.Add(content,0,4);body.Controls.Add(trayOption,0,5);body.Controls.Add(output,0,6);
         Controls.Add(body);Controls.Add(menu);
         Shown+=(_,_)=>{
             try{if(File.Exists(defaults)) Apply(Preferences.Load(defaults));}

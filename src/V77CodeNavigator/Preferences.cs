@@ -1,29 +1,30 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Runtime.InteropServices;
 
 namespace V77CodeNavigator;
 
 internal static class UiArt
 {
     private static readonly Dictionary<string,Bitmap> Cache=new();
-    internal static Bitmap Image(string name)
+    internal static Bitmap Image(string name,int size=20)
     {
-        if(Cache.TryGetValue(name,out var cached)) return cached;
+        string key=$"{name}:{size}";
+        if(Cache.TryGetValue(key,out var cached)) return cached;
         using var stream=typeof(UiArt).Assembly.GetManifestResourceStream($"V77CodeNavigator.Icons.{name}.png") ?? throw new InvalidOperationException(name);
         using var source=new Bitmap(stream);
-        return Cache[name]=new Bitmap(source,new Size(20,20));
+        return Cache[key]=new Bitmap(source,new Size(size,size));
     }
     internal static void Button(Button button,string name)
     {
         button.Image=Image(name);button.TextImageRelation=TextImageRelation.ImageBeforeText;
         button.Padding=new Padding(5,2,5,2);
     }
-    [DllImport("user32")] private static extern bool DestroyIcon(nint icon);
     internal static Icon AppIcon()
     {
-        var h=Image("signpost-2").GetHicon();
-        try{return (Icon)Icon.FromHandle(h).Clone();}finally{DestroyIcon(h);}
+        using var stream=typeof(UiArt).Assembly.GetManifestResourceStream("V77CodeNavigator.Icons.navigator.ico")
+            ?? throw new InvalidOperationException("navigator.ico");
+        using var icon=new Icon(stream,32,32);
+        return (Icon)icon.Clone();
     }
 }
 
