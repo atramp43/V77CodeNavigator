@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using V77Navigator.WinApi;
 
 namespace V77CodeNavigator;
@@ -13,7 +12,7 @@ internal sealed partial class GlobalModuleJump
             return "Окно Конфигуратора потеряло фокус.";
         Native.GetWindowThreadProcessId(root,out uint pid);
         using var process=Process.GetProcessById((int)pid);
-        string exe=process.MainModule?.FileName??"Путь недоступен.";
+        string exe=process.MainModule?.FileName??"";
         var menu=GetMenu(root);
         uint command=FindMenuCommand(menu,"О программе...","О программе…","О программе","About...","About…","About");
         if(command==0 || (GetMenuState(menu,command,0)&3)!=0 || !PostMessageW(root,273,(nint)command,0))
@@ -25,17 +24,64 @@ internal sealed partial class GlobalModuleJump
             var dialog=Native.GetForegroundWindow();
             if(!Owned(dialog,root,pid,"О программе") && !Owned(dialog,root,pid,"About")) continue;
             var controls=Native.Children(dialog).Where(Native.IsWindowVisible).ToArray();
-            var labels=controls.Select(Native.Caption);
-            var baseName=Native.Caption(controls.FirstOrDefault(h=>GetDlgCtrlID(h)==4159)).Trim();
-            var basePath=Native.Caption(controls.FirstOrDefault(h=>GetDlgCtrlID(h)==4156)).Trim();
+            string Value(int id)=>Native.Caption(controls.FirstOrDefault(h=>GetDlgCtrlID(h)==id)).Trim();
+            string baseName=Value(4159);
+            string basePath=Value(4156);
+            string user=Value(4120);
             if(basePath.Length!=0) TrackConfiguratorTitle(root,pid,basePath);
-            var paths=labels.Where(label=>Regex.IsMatch(label,@"(?i)(?:[a-z]:[\\/]|\\\\[^\\]+\\)")).ToArray();
-            string database=paths.Length==0
-                ? "Путь к базе см. в открытом окне «О программе»."
-                : string.Join(Environment.NewLine,paths);
-            return $"Конфигуратор: {exe}{Environment.NewLine}База: {baseName}{Environment.NewLine}{database}";
+            if(!PostMessageW(dialog,16,0,0)) return "Не удалось закрыть окно «О программе».";
+            for(int wait=0;wait<30 && Native.IsWindowVisible(dialog);wait++) await Task.Delay(50);
+            if(Native.IsWindowVisible(dialog)) return "Закройте окно «О программе» и повторите команду.";
+            ShowPathsDialog(root,baseName,exe,basePath,user);
+            return "Окно сведений закрыто.";
         }
         return $"Конфигуратор: {exe}{Environment.NewLine}Не удалось прочитать окно «О программе».";
+    }
+
+    private static void ShowPathsDialog(nint root,string baseName,string exe,string basePath,string user)
+    {
+        using var dialog=new Form{Text=baseName.Length==0?"Сведения о Конфигураторе":$"Сведения о Конфигураторе — {baseName}",
+            ClientSize=new Size(760,220),MinimumSize=new Size(480,240),StartPosition=FormStartPosition.CenterParent,
+            MinimizeBox=false,MaximizeBox=false,ShowInTaskbar=true,KeyPreview=true};
+        var grid=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(12),ColumnCount=3,RowCount=5};
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
+        grid.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        var status=new Label{AutoSize=true,Anchor=AnchorStyles.Left};
+        var fields=new (string Label,string Value)[]{("Путь к 1cv7.exe",exe),("Путь к базе",basePath),("Пользователь 1С",user)};
+        var buttons=new Button[fields.Length];
+        for(int row=0;row<fields.Length;row++)
+        {
+            var (label,value)=fields[row];
+            grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            grid.Controls.Add(new Label{Text=label,AutoSize=true,Anchor=AnchorStyles.Left},0,row);
+            grid.Controls.Add(new TextBox{Text=value,PlaceholderText="Недоступно",ReadOnly=true,
+                Dock=DockStyle.Fill,AccessibleName=label},1,row);
+            var copy=new Button{Text=$"Копировать (&{row+1})",AutoSize=true,Enabled=value.Length!=0,
+                AccessibleName=$"Копировать: {label}"};
+            copy.Click+=(_,_)=>{
+                try{Clipboard.SetText(value);status.Text=$"Скопировано: {label}";}
+                catch(ExternalException){status.Text="Буфер обмена занят. Повторите копирование.";}
+            };
+            buttons[row]=copy;
+            grid.Controls.Add(copy,2,row);
+        }
+        grid.RowStyles.Add(new RowStyle(SizeType.Percent,100));
+        grid.Controls.Add(status,0,3);
+        grid.SetColumnSpan(status,2);
+        grid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        var close=new Button{Text="Закрыть",AutoSize=true,Anchor=AnchorStyles.Right,DialogResult=DialogResult.Cancel};
+        grid.Controls.Add(close,2,4);
+        dialog.Controls.Add(grid);
+        dialog.CancelButton=close;
+        dialog.KeyDown+=(_,e)=>{
+            if(e.Alt && e.KeyCode is >=Keys.D1 and <=Keys.D3)
+            {
+                buttons[e.KeyCode-Keys.D1].PerformClick();
+                e.SuppressKeyPress=true;
+            }
+        };
+        dialog.ShowDialog(new DialogOwner(root));
     }
 
     private const string TitleMarker=" | База: ";
