@@ -26,20 +26,25 @@ internal sealed partial class GlobalModuleJump
         if(methods.Length==0) return "В текущем модуле подходящих объявлений нет.";
 
         using var form=new Form{Text=complete?"Дополнение имени":"Параметры метода",
-            StartPosition=FormStartPosition.CenterParent,Width=660,Height=320,ShowInTaskbar=false,
+            StartPosition=FormStartPosition.CenterParent,ClientSize=new Size(640,300),MinimumSize=new Size(420,250),ShowInTaskbar=true,
             MinimizeBox=false,MaximizeBox=false,KeyPreview=true};
-        var list=new ListBox{Dock=DockStyle.Top,Height=100};
+        var list=new ListBox{Dock=DockStyle.Fill};
         foreach(var method in methods) list.Items.Add($"{method.Name} · строка {method.Line}");
         var signature=new TextBox{Dock=DockStyle.Fill,Multiline=true,ReadOnly=true,ScrollBars=ScrollBars.Vertical};
-        var button=new Button{Text=complete?"Дополнить":"Закрыть",Dock=DockStyle.Bottom,DialogResult=DialogResult.OK};
+        var button=new Button{Text=complete?"Дополнить":"Закрыть",AutoSize=true,Anchor=AnchorStyles.Right,Padding=new Padding(12,4,12,4),DialogResult=DialogResult.OK};
         list.SelectedIndexChanged+=(_,_)=>{
             var method=methods[list.SelectedIndex];
             signature.Text=ModuleParser.Signature(source,method).ReplaceLineEndings("\r\n");
             button.Enabled=!complete || method.Name.Length>word.Length;
         };
-        form.Controls.Add(signature);
-        form.Controls.Add(list);
-        form.Controls.Add(button);
+        var layout=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(10),ColumnCount=1,RowCount=3};
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent,42));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent,58));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.Controls.Add(list,0,0);
+        layout.Controls.Add(signature,0,1);
+        layout.Controls.Add(button,0,2);
+        form.Controls.Add(layout);
         form.AcceptButton=button;
         form.KeyDown+=(_,e)=>{if(e.KeyCode==Keys.Escape){e.SuppressKeyPress=true;form.DialogResult=DialogResult.Cancel;}};
         list.SelectedIndex=0;
