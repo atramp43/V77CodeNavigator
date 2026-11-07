@@ -27,7 +27,8 @@ internal sealed partial class GlobalModuleJump
             var controls=Native.Children(dialog).Where(Native.IsWindowVisible).ToArray();
             var labels=controls.Select(Native.Caption);
             var baseName=Native.Caption(controls.FirstOrDefault(h=>GetDlgCtrlID(h)==4159)).Trim();
-            if(baseName.Length!=0) TrackConfiguratorTitle(root,pid,baseName,exe);
+            var basePath=Native.Caption(controls.FirstOrDefault(h=>GetDlgCtrlID(h)==4156)).Trim();
+            if(basePath.Length!=0) TrackConfiguratorTitle(root,pid,basePath);
             var paths=labels.Where(label=>Regex.IsMatch(label,@"(?i)(?:[a-z]:[\\/]|\\\\[^\\]+\\)")).ToArray();
             string database=paths.Length==0
                 ? "Путь к базе см. в открытом окне «О программе»."
@@ -42,11 +43,11 @@ internal sealed partial class GlobalModuleJump
     private readonly Dictionary<nint,TitleDetails> configuratorTitles=new();
     private System.Windows.Forms.Timer? titleTimer;
 
-    private void TrackConfiguratorTitle(nint window,uint pid,string baseName,string executable)
+    private void TrackConfiguratorTitle(nint window,uint pid,string basePath)
     {
         if(configuratorTitles.TryGetValue(window,out var previous) && previous.Pid==pid)
             RemoveTitleSuffix(window,previous);
-        configuratorTitles[window]=new(pid,$"{TitleMarker}{baseName} | {executable}");
+        configuratorTitles[window]=new(pid,$"{TitleMarker}{basePath}");
         SetConfiguratorCaption(window,BaseCaption(Native.Caption(window))+configuratorTitles[window].Suffix);
         if(titleTimer!=null) return;
         titleTimer=new System.Windows.Forms.Timer{Interval=750};
