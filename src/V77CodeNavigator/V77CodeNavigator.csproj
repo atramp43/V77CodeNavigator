@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><Version>0.3.7</Version><ApplicationIcon>Icons/navigator.ico</ApplicationIcon><OutputType>WinExe</OutputType><UseWindowsForms>true</UseWindowsForms><ApplicationManifest>app.manifest</ApplicationManifest></PropertyGroup>
+  <PropertyGroup><Version>0.4.0</Version><ApplicationIcon>Icons/navigator.ico</ApplicationIcon><OutputType>WinExe</OutputType><UseWindowsForms>true</UseWindowsForms><ApplicationManifest>app.manifest</ApplicationManifest></PropertyGroup>
   <ItemGroup><ProjectReference Include="../V77Navigator.Diagnostics/V77Navigator.Diagnostics.csproj" /></ItemGroup>
   <ItemGroup><EmbeddedResource Include="Icons/*.png;Icons/navigator.ico" /><None Update="Icons/LICENSE.txt" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

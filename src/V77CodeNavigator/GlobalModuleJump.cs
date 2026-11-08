@@ -27,13 +27,14 @@ internal sealed partial class GlobalModuleJump : IDisposable
     private readonly Bindings bindings;
     private int down;
     private bool busy;
-    public GlobalModuleJump(Control ui, Bindings bindings, Action<string> show)
+    public GlobalModuleJump(Control ui, Bindings bindings, Action<string> show, Action<bool> reportTracking)
     {
         this.bindings=bindings; this.ui=ui; this.show=show; callback=OnKey;
         hook=SetWindowsHookExW(13,callback,GetModuleHandle(null),0);
         if(hook==0) throw new System.ComponentModel.Win32Exception();
+        StartTracking(reportTracking);
     }
-    public void Dispose(){if(hook!=0) UnhookWindowsHookEx(hook); hook=0;CloseSignature();RestoreConfiguratorTitles();}
+    public void Dispose(){if(hook!=0) UnhookWindowsHookEx(hook); hook=0;StopTracking();CloseSignature();RestoreConfiguratorTitles();}
 
     private static bool Target(nint root,out nint focus,out uint pid)
     {
@@ -76,6 +77,8 @@ internal sealed partial class GlobalModuleJump : IDisposable
                     if(!busy && bindings.Map.ContainsValue(chord))
                     {
                         var root=Native.GetForegroundWindow();
+                        if(Bindings.IsReserved(chord) || !IsConfiguratorWindow(root) || HasNativeShortcut(root,chord))
+                            return CallNextHookEx(0,code,msg,data);
                         var action=bindings.Map.First(pair=>pair.Value==chord).Key;
                         if(action==NavAction.ConfiguratorInfo && IsConfiguratorWindow(root))
                         {
@@ -134,7 +137,7 @@ internal sealed partial class GlobalModuleJump : IDisposable
     {
         if(action==NavAction.Back || action==NavAction.Forward) return await NavigateHistory(root,editor,pid,action==NavAction.Back);
         if(action==NavAction.FilterMethods) return await FilterMethods(root,editor,pid);
-        if(action is NavAction.MethodStart or NavAction.MethodEnd or NavAction.SelectMethod or NavAction.CopyLine or NavAction.SelectLine or NavAction.InspectMethod or NavAction.SelectAll or NavAction.SignatureHelp or NavAction.CompleteName)
+        if(action is NavAction.MethodStart or NavAction.MethodEnd or NavAction.SelectMethod or NavAction.CopyLine or NavAction.DuplicateLine or NavAction.SelectLine or NavAction.InspectMethod or NavAction.SelectAll or NavAction.SignatureHelp or NavAction.CompleteName)
             return await EditCommand(root,editor,pid,action);
         var origin=action==NavAction.Definition ? CaptureSpot(root,editor,pid) : null;
         int direct=action switch { NavAction.Methods=>33298, NavAction.Line=>33283, NavAction.Bookmark=>33290, NavAction.NextBookmark=>33291, _=>0 };

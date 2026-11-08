@@ -58,8 +58,14 @@ internal sealed partial class GlobalModuleJump
 
         var suffix=methods[list.SelectedIndex].Name[word.Length..];
         if(suffix.Length==0) return "Имя уже введено полностью.";
+        PasteEditorText(origin,suffix);
+        return $"Дополнено имя {methods[list.SelectedIndex].Name}.";
+    }
+    private static void PasteEditorText(Spot origin,string text)
+    {
+        CheckEditor(origin.Root,origin.Editor,origin.Pid);
         var saved=Clipboard.GetDataObject();
-        Clipboard.SetText(suffix);
+        Clipboard.SetText(text);
         uint staged=GetClipboardSequenceNumber();
         try{Read(origin.Root,273,57637,0);}
         finally
@@ -70,6 +76,5 @@ internal sealed partial class GlobalModuleJump
                 else Clipboard.SetDataObject(saved,true);
             }
         }
-        return $"Дополнено имя {methods[list.SelectedIndex].Name}.";
     }
 }

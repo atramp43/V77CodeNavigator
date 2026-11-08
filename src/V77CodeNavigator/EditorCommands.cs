@@ -128,13 +128,33 @@ internal sealed partial class GlobalModuleJump
         }
         if(action==NavAction.SelectLine)
         {
-            SendKeys.SendWait("{HOME}{HOME}+{END}");
+            SendKeys.SendWait("{HOME}{HOME}+{DOWN}");
+            if(Coordinates(root)?.Line==origin.Line) SendKeys.SendWait("+{END}");
             return $"Выделена строка {origin.Line}.";
         }
 
         var source=await ReadModuleViaClipboard(origin);
         if(action is NavAction.SignatureHelp or NavAction.CompleteName)
             return ShowMethodHelp(origin,source,action==NavAction.CompleteName);
+        if(action==NavAction.DuplicateLine)
+        {
+            var lines=source.ReplaceLineEndings("\n").Split('\n');
+            if(origin.Line>lines.Length) return "Текущая строка недоступна.";
+            string current=lines[origin.Line-1];
+            if(origin.Line<lines.Length)
+            {
+                await PlaceCaret(origin,origin.Line+1);
+                if(Coordinates(root)!=(origin.Line+1,1)) return "Не удалось установить каретку в начало следующей строки.";
+                PasteEditorText(origin,current+"\r\n");
+            }
+            else
+            {
+                await PlaceCaret(origin,origin.Line);
+                SendKeys.SendWait("{END}");
+                PasteEditorText(origin,"\r\n"+current);
+            }
+            return $"Строка {origin.Line} продублирована.";
+        }
         if(action==NavAction.CopyLine)
         {
             var lines=source.ReplaceLineEndings("\n").Split('\n');

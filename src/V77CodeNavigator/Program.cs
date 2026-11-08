@@ -42,7 +42,8 @@ internal sealed class DiagnosticForm : Form
 
     public DiagnosticForm()
     {
-        Text=$"V77CodeNavigator v{Application.ProductVersion.Split('+', 2)[0]}";
+        string windowTitle=$"V77CodeNavigator v{Application.ProductVersion.Split('+', 2)[0]}";
+        Text=windowTitle;
         AutoScaleMode=AutoScaleMode.Dpi;
         MinimumSize=new Size(520,440);Size=new Size(760,540);StartPosition=FormStartPosition.CenterScreen;
         var appIcon=UiArt.AppIcon();Icon=appIcon;
@@ -50,27 +51,40 @@ internal sealed class DiagnosticForm : Form
         var pilot=new CheckBox{Text="Горячие клавиши в редакторе 1С",AutoSize=true};
         var trayOption=new CheckBox{Text="При сворачивании скрывать окно в трей",AutoSize=true,Checked=true};
         content.Text="Включать исходный текст и заголовки в отчёт";
-        var keys=new Button{Text="Горячие клавиши…",AutoSize=true};
+        var keys=new Button{Text="Горячие клавиши и справка…",AutoSize=true};
         UiArt.Button(keys,"keyboard");UiArt.Button(capture,"file-earmark-text");UiArt.Button(open,"folder2-open");
         capture.Text="Собрать через 7 секунд";
+        var autoTrack=new CheckBox{Text="Автоматически отслеживать Конфигуратор и модули",AutoSize=true};
         GlobalModuleJump? jump=null;
-        pilot.CheckedChanged+=(_,_)=>{
-            jump?.Dispose();jump=null;
-            if(pilot.Checked)try{jump=new(this,bindings,m=>output.Text=m);}
-            catch(Exception ex){pilot.Checked=false;output.Text=ex.Message;}
-        };
+        void UpdateTracking()
+        {
+            if(pilot.Checked || autoTrack.Checked)
+            {
+                if(jump!=null) return;
+                try{jump=new(this,bindings,m=>output.Text=m,active=>Text=(active?GlobalModuleJump.ActivePrefix:"")+windowTitle);}
+                catch(Exception ex){output.Text=ex.Message;}
+            }
+            else
+            {
+                jump?.Dispose();
+                jump=null;
+                Text=windowTitle;
+            }
+        }
+        pilot.CheckedChanged+=(_,_)=>UpdateTracking();
+        autoTrack.CheckedChanged+=(_,_)=>UpdateTracking();
         string defaults=Path.Combine(Program.ProjectRoot(),"navigator-settings.json");
         Preferences Snapshot()
         {
             var size=WindowState==FormWindowState.Normal?Size:RestoreBounds.Size;
-            return new(1,pilot.Checked,content.Checked,trayOption.Checked,size.Width,size.Height,new(bindings.Map));
+            return new(1,pilot.Checked,content.Checked,trayOption.Checked,size.Width,size.Height,new(bindings.Map),autoTrack.Checked);
         }
         void Apply(Preferences p)
         {
             bindings.Apply(p.Bindings);
             var screen=Screen.FromControl(this).WorkingArea;
             Size=new Size(Math.Clamp(p.Width,MinimumSize.Width,Math.Max(MinimumSize.Width,screen.Width)),Math.Clamp(p.Height,MinimumSize.Height,Math.Max(MinimumSize.Height,screen.Height)));
-            trayOption.Checked=p.MinimizeToTray;content.Checked=p.IncludeContent;pilot.Checked=p.Shortcuts;
+            trayOption.Checked=p.MinimizeToTray;content.Checked=p.IncludeContent;autoTrack.Checked=p.AutoTrack;pilot.Checked=p.Shortcuts;
         }
         void Transfer(bool load)
         {
@@ -87,7 +101,7 @@ internal sealed class DiagnosticForm : Form
         var config=new ToolStripMenuItem("Настройки",UiArt.Image("gear"));
         void EditKeys()=>bindings.Edit(this);
         keys.Click+=(_,_)=>EditKeys();
-        config.DropDownItems.Add(Item("Горячие клавиши…","keyboard",EditKeys));
+        config.DropDownItems.Add(Item("Горячие клавиши и справка…","keyboard",EditKeys));
         config.DropDownItems.Add(Item("Загрузить из файла…","upload",()=>Transfer(true)));
         config.DropDownItems.Add(Item("Сохранить в файл…","download",()=>Transfer(false)));
         var trayMenu=new ContextMenuStrip();
@@ -102,9 +116,9 @@ internal sealed class DiagnosticForm : Form
         window.DropDownItems.Add(Item("Выход","x-lg",Close));
         menu.Items.AddRange(new ToolStripItem[]{config,window});MainMenuStrip=menu;
         Resize+=(_,_)=>{if(WindowState==FormWindowState.Minimized && trayOption.Checked)HideInTray();};
-        var body=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=7,Padding=new Padding(12),AutoScroll=true};
+        var body=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=8,Padding=new Padding(12),AutoScroll=true};
         body.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));
-        for(int i=0;i<6;i++)body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        for(int i=0;i<7;i++)body.RowStyles.Add(new RowStyle(SizeType.AutoSize));
         body.RowStyles.Add(new RowStyle(SizeType.Percent,100));
         var actions=new FlowLayoutPanel{Dock=DockStyle.Fill,AutoSize=true,WrapContents=true,AutoSizeMode=AutoSizeMode.GrowAndShrink};
         actions.Controls.AddRange(new Control[]{capture,open,keys});
@@ -118,12 +132,12 @@ internal sealed class DiagnosticForm : Form
         brand.Controls.Add(new Label{Text="V77CodeNavigator",Font=brandFont,AutoSize=true,Anchor=AnchorStyles.Left},1,0);
         FormClosed+=(_,_)=>brandFont.Dispose();
         body.Controls.Add(brand,0,0);
-        body.Controls.Add(actions,0,1);body.Controls.Add(hint,0,2);body.Controls.Add(pilot,0,3);body.Controls.Add(content,0,4);body.Controls.Add(trayOption,0,5);body.Controls.Add(output,0,6);
+        body.Controls.Add(actions,0,1);body.Controls.Add(hint,0,2);body.Controls.Add(pilot,0,3);body.Controls.Add(content,0,4);body.Controls.Add(trayOption,0,5);body.Controls.Add(autoTrack,0,6);body.Controls.Add(output,0,7);
         Controls.Add(body);Controls.Add(menu);
         Shown+=(_,_)=>{
             try{if(File.Exists(defaults)) Apply(Preferences.Load(defaults));}
             catch(Exception ex){output.Text="Не удалось загрузить настройки: "+ex.Message;}
-            if(Environment.GetCommandLineArgs().Contains("--f12"))pilot.Checked=true;
+            if(Environment.GetCommandLineArgs().Any(arg=>arg is "--f10" or "--f12"))pilot.Checked=true;
         };
         FormClosed+=(_,_)=>{
             try{Snapshot().Save(defaults);}catch(Exception ex){MessageBox.Show(ex.Message,"Не удалось сохранить настройки");}
@@ -135,7 +149,7 @@ internal sealed class DiagnosticForm : Form
             try { Process.Start(new ProcessStartInfo("explorer.exe", Directory.CreateDirectory(Path.Combine(Program.ProjectRoot(), "logs")).FullName) { UseShellExecute = true }); }
             catch (Exception ex) { output.Text = ex.Message; }
         };
-        output.Text = "Готово. По умолчанию содержимое модулей, UIA Name/Value и заголовки окон исключены.\r\nДля пробного перехода включите F12 и поставьте курсор внутри имени.";
+        output.Text = "Готово. По умолчанию содержимое модулей, UIA Name/Value и заголовки окон исключены.\r\nДля пробного перехода включите F10 и поставьте курсор внутри имени.";
     }
 
     private async Task CaptureAsync()
