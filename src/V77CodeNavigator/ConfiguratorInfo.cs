@@ -28,7 +28,8 @@ internal sealed partial class GlobalModuleJump
             string baseName=Value(4159);
             string basePath=Value(4156);
             string user=Value(4120);
-            if(basePath.Length!=0) TrackConfiguratorTitle(root,pid,basePath);
+            if(basePath.Length==0 && i<29) continue;
+            if(basePath.Length!=0) TrackConfiguratorTitle(root,pid,basePath,user);
             if(!PostMessageW(dialog,16,0,0)) return "Не удалось закрыть окно «О программе».";
             for(int wait=0;wait<30 && Native.IsWindowVisible(dialog);wait++) await Task.Delay(50);
             if(Native.IsWindowVisible(dialog)) return "Закройте окно «О программе» и повторите команду.";
@@ -109,11 +110,12 @@ internal sealed partial class GlobalModuleJump
     private readonly Dictionary<nint,TitleDetails> configuratorTitles=new();
     private System.Windows.Forms.Timer? titleTimer;
 
-    private void TrackConfiguratorTitle(nint window,uint pid,string basePath)
+    private void TrackConfiguratorTitle(nint window,uint pid,string basePath,string user)
     {
         if(configuratorTitles.TryGetValue(window,out var previous) && previous.Pid==pid)
             RemoveTitleSuffix(window,previous);
-        configuratorTitles[window]=new(pid,$"{TitleMarker}{basePath}");
+        string userSuffix=user.Length==0?"":$" | Пользователь: {user}";
+        configuratorTitles[window]=new(pid,$"{TitleMarker}{basePath}{userSuffix}");
         SetConfiguratorCaption(window,BaseCaption(Native.Caption(window))+configuratorTitles[window].Suffix);
         if(titleTimer!=null) return;
         titleTimer=new System.Windows.Forms.Timer{Interval=750};
