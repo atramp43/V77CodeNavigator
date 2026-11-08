@@ -9,6 +9,7 @@ internal sealed partial class GlobalModuleJump
     private System.Windows.Forms.Timer? trackingTimer;
     private nint trackedFrame;
     private uint trackedPid;
+    private nint trackedEditor;
 
     private void StartTracking(Action<bool> report)
     {
@@ -18,7 +19,7 @@ internal sealed partial class GlobalModuleJump
             try
             {
                 var root=Native.GetForegroundWindow();
-                bool active=Target(root,out _,out uint pid);
+                bool active=Target(root,out var editor,out uint pid);
                 if(trackedFrame!=0 && (!active || root!=trackedFrame)) ClearTrackingTitle();
                 if(active)
                 {
@@ -28,9 +29,12 @@ internal sealed partial class GlobalModuleJump
                         trackedPid=pid;
                         bindings.NativeShortcuts=ReadNativeShortcuts(GetMenu(root));
                     }
+                    bool editorChanged=trackedEditor!=editor;
+                    trackedEditor=editor;
                     string caption=Native.Caption(root);
                     if(!caption.StartsWith(ActivePrefix,StringComparison.Ordinal))
                         SetConfiguratorCaption(root,ActivePrefix+BaseCaption(caption)+(configuratorTitles.TryGetValue(root,out var info)?info.Suffix:""));
+                    if(editorChanged) RepaintEditorToolbar(root);
                 }
                 report(active);
             }
@@ -58,6 +62,16 @@ internal sealed partial class GlobalModuleJump
                     (configuratorTitles.TryGetValue(trackedFrame,out var info)?info.Suffix:""));
         }
         trackedFrame=0;
+        trackedEditor=0;
+    }
+
+    private static bool RepaintEditorToolbar(nint root)
+    {
+        const int editorToolbarId=59404;
+        const uint invalidate=1, erase=4, allChildren=0x80, frame=0x400;
+        var toolbar=Native.Children(root).FirstOrDefault(window=>
+            GetDlgCtrlID(window)==editorToolbarId && Native.IsWindowVisible(window));
+        return toolbar!=0 && RedrawWindow(toolbar,0,0,invalidate|erase|allChildren|frame);
     }
 
     private bool HasNativeShortcut(nint root,Keys chord)

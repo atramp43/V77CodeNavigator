@@ -96,8 +96,10 @@ internal sealed partial class GlobalModuleJump : IDisposable
                             ui.BeginInvoke(new Action(()=>{
                                 if(Native.GetForegroundWindow()!=root || !IsConfiguratorWindow(root)) return;
                                 const uint invalidate=1, erase=4, allChildren=0x80, frame=0x400;
-                                show(RedrawWindow(root,0,0,invalidate|erase|allChildren|frame)
-                                    ? "Запрошена перерисовка окна Конфигуратора."
+                                bool window=RedrawWindow(root,0,0,invalidate|erase|allChildren|frame);
+                                bool toolbar=RepaintEditorToolbar(root);
+                                show(toolbar ? "Запрошена перерисовка окна и панели редактора."
+                                    : window ? "Запрошена перерисовка окна Конфигуратора."
                                     : "Не удалось запросить перерисовку.");
                             }));
                             return 1;
