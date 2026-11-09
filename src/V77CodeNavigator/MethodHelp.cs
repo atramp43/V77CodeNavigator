@@ -14,6 +14,7 @@ internal sealed partial class GlobalModuleJump
         var line=lines[origin.Line-1];
         int column=origin.Column-1;
         if(column>line.Length) return "Поставьте курсор внутри имени или сразу после него.";
+        if(!complete && column>0 && line[column-1]=='(') column--;
         var word=Regex.Matches(line,@"[\p{L}_][\p{L}\p{Nd}_]*").Cast<Match>()
             .FirstOrDefault(m=>m.Index<=column && column<=m.Index+m.Length);
         if(word==null) return "Поставьте курсор внутри имени или сразу после него.";
@@ -25,18 +26,23 @@ internal sealed partial class GlobalModuleJump
                                : m.Name.Equals(word.Value,StringComparison.OrdinalIgnoreCase))
             .OrderBy(m=>m.Name,StringComparer.OrdinalIgnoreCase).ToArray();
         if(methods.Length==0) return "В текущем модуле подходящих объявлений нет.";
+        if(!complete)
+        {
+            ShowSignature(origin,ModuleParser.Signature(source,methods[0]));
+            return $"Параметры: {methods[0].Name}.";
+        }
 
-        using var form=new Form{Text=complete?"Дополнение имени":"Параметры метода",
+        using var form=new Form{Text="Дополнение имени",
             StartPosition=FormStartPosition.CenterParent,ClientSize=new Size(640,300),MinimumSize=new Size(420,250),ShowInTaskbar=true,
             MinimizeBox=false,MaximizeBox=false,KeyPreview=true};
         var list=new ListBox{Dock=DockStyle.Fill};
         foreach(var method in methods) list.Items.Add($"{method.Name} · строка {method.Line}");
         var signature=new TextBox{Dock=DockStyle.Fill,Multiline=true,ReadOnly=true,ScrollBars=ScrollBars.Vertical};
-        var button=new Button{Text=complete?"Дополнить":"Закрыть",AutoSize=true,Anchor=AnchorStyles.Right,Padding=new Padding(12,4,12,4),DialogResult=DialogResult.OK};
+        var button=new Button{Text="Дополнить",AutoSize=true,Anchor=AnchorStyles.Right,Padding=new Padding(12,4,12,4),DialogResult=DialogResult.OK};
         list.SelectedIndexChanged+=(_,_)=>{
             var method=methods[list.SelectedIndex];
             signature.Text=ModuleParser.Signature(source,method).ReplaceLineEndings("\r\n");
-            button.Enabled=!complete || method.Name.Length>word.Length;
+            button.Enabled=!method.Name.Equals(word.Value,StringComparison.Ordinal);
         };
         var layout=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(10),ColumnCount=1,RowCount=3};
         layout.RowStyles.Add(new RowStyle(SizeType.Percent,42));
@@ -49,17 +55,22 @@ internal sealed partial class GlobalModuleJump
         form.AcceptButton=button;
         form.KeyDown+=(_,e)=>{if(e.KeyCode==Keys.Escape){e.SuppressKeyPress=true;form.DialogResult=DialogResult.Cancel;}};
         list.SelectedIndex=0;
-        var result=form.ShowDialog(new DialogOwner(origin.Root));
-        if(!complete || result!=DialogResult.OK) return "Подсказка закрыта.";
+        var result=DialogSizes.Show(form,"Completion",new DialogOwner(origin.Root));
+        if(result!=DialogResult.OK) return "Дополнение отменено.";
 
         CheckEditor(origin.Root,origin.Editor,origin.Pid);
         if(Coordinates(origin.Root)!=(origin.Line,origin.Column))
             return "Позиция каретки изменилась. Повторите дополнение.";
 
-        var suffix=methods[list.SelectedIndex].Name[word.Length..];
-        if(suffix.Length==0) return "Имя уже введено полностью.";
-        PasteEditorText(origin,suffix);
-        return $"Дополнено имя {methods[list.SelectedIndex].Name}.";
+        var name=methods[list.SelectedIndex].Name;
+        if(name.Equals(word.Value,StringComparison.Ordinal)) return "Имя уже введено полностью.";
+        SendKeys.SendWait($"+{{LEFT {word.Length}}}");
+        if(Coordinates(origin.Root)!=(origin.Line,origin.Column-word.Length))
+            return "Не удалось выделить имя для замены.";
+        PasteEditorText(origin,name);
+        typedName.Clear();
+        typedName.Append(name);
+        return $"Дополнено имя {name}.";
     }
     private static void PasteEditorText(Spot origin,string text)
     {

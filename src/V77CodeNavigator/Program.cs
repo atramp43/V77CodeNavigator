@@ -21,7 +21,28 @@ internal static class Program
             return r.Status.StartsWith("Complete", StringComparison.Ordinal) ? 0 : 2;
         }
         ApplicationConfiguration.Initialize();
-        Application.Run(new DiagnosticForm());
+        using var instance=new Mutex(false,@"Local\V77CodeNavigator.Interactive");
+        bool acquired;
+        try{acquired=instance.WaitOne(0);}
+        catch(AbandonedMutexException){acquired=true;}
+        if(!acquired)
+        {
+            using var notice=new Form{Text="V77CodeNavigator",StartPosition=FormStartPosition.CenterScreen,
+                ClientSize=new Size(460,120),FormBorderStyle=FormBorderStyle.FixedDialog,
+                MinimizeBox=false,MaximizeBox=false};
+            var close=new Button{Text="Закрыть",Dock=DockStyle.Bottom,Height=34,DialogResult=DialogResult.OK};
+            notice.Controls.Add(new Label{Text="Навигатор уже запущен. Второй экземпляр открыть нельзя.",
+                Dock=DockStyle.Fill,TextAlign=ContentAlignment.MiddleCenter,Padding=new Padding(12)});
+            notice.Controls.Add(close);
+            notice.AcceptButton=notice.CancelButton=close;
+            using var timer=new System.Windows.Forms.Timer{Interval=60000};
+            timer.Tick+=(_,_)=>notice.Close();
+            notice.Shown+=(_,_)=>timer.Start();
+            notice.ShowDialog();
+            return 0;
+        }
+        try{Application.Run(new DiagnosticForm());}
+        finally{instance.ReleaseMutex();}
         return 0;
     }
 

@@ -142,7 +142,8 @@ internal sealed partial class GlobalModuleJump
             matches.DoubleClick+=(_,_)=>{if(matches.SelectedItem!=null) form.DialogResult=DialogResult.OK;};
             form.KeyPreview=true;form.KeyDown+=(_,e)=>{if(e.KeyCode==Keys.Escape) form.DialogResult=DialogResult.Cancel;};
             RefreshList();
-            if(form.ShowDialog(new DialogOwner(dialog))!=DialogResult.OK || matches.SelectedItem is not Hit hit) return "Выбор отменён.";
+            if(DialogSizes.Show(form,"ModuleMethods",new DialogOwner(dialog))!=DialogResult.OK ||
+                matches.SelectedItem is not Hit hit) return "Выбор отменён.";
             if(!Owned(dialog,root,pid,"Процедуры и функции модуля") || ListText(list,hit.Index)!=hit.Row || Read(list,390,hit.Index,0)!=hit.Index) return "Список изменился.";
             Read(dialog,273,65536+GetDlgCtrlID(list),list);
             clicked=IsWindowEnabled(go) && PostMessageW(go,245,0,0);

@@ -333,7 +333,8 @@ internal sealed partial class GlobalModuleJump : IDisposable
         var choose=new Button{Text="Перейти",Dock=DockStyle.Bottom,DialogResult=DialogResult.OK};
         UiArt.Button(choose,"check2");form.Controls.Add(items);form.Controls.Add(choose);form.AcceptButton=choose;
         items.DoubleClick+=(_,_)=>form.DialogResult=DialogResult.OK;
-        if(form.ShowDialog()!=DialogResult.OK || items.SelectedItem is not Hit selected) return "Выбор отменён.";
+        if(DialogSizes.Show(form,"VariableDeclarations",new DialogOwner(root))!=DialogResult.OK ||
+            items.SelectedItem is not Hit selected) return "Выбор отменён.";
         Native.GetWindowThreadProcessId(list,out uint owner);
         if(owner!=pid || Native.GetAncestor(list,2)!=root || ListText(list,selected.Index)!=selected.Row)
             return "Результаты поиска изменились. Повторите поиск.";

@@ -91,7 +91,7 @@ internal sealed partial class GlobalModuleJump
                 e.SuppressKeyPress=true;
             }
         };
-        dialog.ShowDialog(new DialogOwner(root));
+        DialogSizes.Show(dialog,"ConfiguratorInfo",new DialogOwner(root));
     }
 
     private static Bitmap CreateCopyIcon()

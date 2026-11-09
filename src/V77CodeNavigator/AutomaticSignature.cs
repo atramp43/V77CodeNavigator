@@ -90,15 +90,24 @@ internal sealed partial class GlobalModuleJump
             if(!match.Success || !index.Signatures.TryGetValue(match.Value,out signature)) return;
         }
 
+        ShowSignature(module,signature);
+    }
+
+    private void ShowSignature(Spot module,string signature)
+    {
+        CloseSignature();
+        CheckEditor(module.Root,module.Editor,module.Pid);
         uint thread=Native.GetWindowThreadProcessId(module.Root,out _);
         var gui=new Native.GuiInfo{Size=(uint)Marshal.SizeOf<Native.GuiInfo>()};
         if(!Native.GetGUIThreadInfo(thread,ref gui) || gui.Caret==0) return;
-        var point=new Point(gui.CaretRect.Left,gui.CaretRect.Bottom+5);
-        if(!ClientToScreen(gui.Caret,ref point)) return;
+        var top=new Point(gui.CaretRect.Left,gui.CaretRect.Top);
+        var bottom=new Point(gui.CaretRect.Left,gui.CaretRect.Bottom);
+        if(!ClientToScreen(gui.Caret,ref top) || !ClientToScreen(gui.Caret,ref bottom)) return;
         var popup=new SignaturePopup(signature.ReplaceLineEndings(" "));
-        var area=Screen.FromPoint(point).WorkingArea;
-        popup.Location=new Point(Math.Clamp(point.X,area.Left,Math.Max(area.Left,area.Right-popup.Width)),
-            Math.Clamp(point.Y,area.Top,Math.Max(area.Top,area.Bottom-popup.Height)));
+        var area=Screen.FromPoint(bottom).WorkingArea;
+        int y=bottom.Y+5+popup.Height<=area.Bottom ? bottom.Y+5 : top.Y-5-popup.Height;
+        popup.Location=new Point(Math.Clamp(bottom.X,area.Left,Math.Max(area.Left,area.Right-popup.Width)),
+            Math.Clamp(y,area.Top,Math.Max(area.Top,area.Bottom-popup.Height)));
         signaturePopup=popup;
         popup.Show(new DialogOwner(module.Root));
         var expires=Environment.TickCount64+10000;
@@ -106,7 +115,7 @@ internal sealed partial class GlobalModuleJump
         signatureTimer.Tick+=(_,_)=>{
             var current=new Native.GuiInfo{Size=(uint)Marshal.SizeOf<Native.GuiInfo>()};
             if(Environment.TickCount64>=expires || Native.GetForegroundWindow()!=module.Root ||
-                !Native.GetGUIThreadInfo(thread,ref current) || current.Focus!=editor)
+                !Native.GetGUIThreadInfo(thread,ref current) || current.Focus!=module.Editor)
                 CloseSignature();
         };
         signatureTimer.Start();

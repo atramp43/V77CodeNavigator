@@ -9,4 +9,6 @@ CODEX_WORK/
 catalog/
 hotkeys.json
 navigator-settings.json
+window-sizes.json
+window-sizes.json.tmp
 __pycache__/
