@@ -137,7 +137,7 @@ internal sealed partial class GlobalModuleJump : IDisposable
     {
         if(action==NavAction.Back || action==NavAction.Forward) return await NavigateHistory(root,editor,pid,action==NavAction.Back);
         if(action==NavAction.FilterMethods) return await FilterMethods(root,editor,pid);
-        if(action is NavAction.MethodStart or NavAction.MethodEnd or NavAction.SelectMethod or NavAction.CopyLine or NavAction.DuplicateLine or NavAction.SelectLine or NavAction.InspectMethod or NavAction.SelectAll or NavAction.SignatureHelp or NavAction.CompleteName)
+        if(action is NavAction.MethodStart or NavAction.MethodEnd or NavAction.SelectMethod or NavAction.SelectDocumentedMethod or NavAction.CopyLine or NavAction.DuplicateLine or NavAction.SelectLine or NavAction.InspectMethod or NavAction.SelectAll or NavAction.SignatureHelp or NavAction.CompleteName)
             return await EditCommand(root,editor,pid,action);
         var origin=action is NavAction.Definition or NavAction.Variable ? CaptureSpot(root,editor,pid) : null;
         int direct=action switch { NavAction.Methods=>33298, NavAction.Line=>33283, NavAction.Bookmark=>33290, NavAction.NextBookmark=>33291, _=>0 };

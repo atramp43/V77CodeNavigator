@@ -77,11 +77,13 @@ internal sealed class DiagnosticForm : Form
         Preferences Snapshot()
         {
             var size=WindowState==FormWindowState.Normal?Size:RestoreBounds.Size;
-            return new(1,pilot.Checked,content.Checked,trayOption.Checked,size.Width,size.Height,new(bindings.Map),autoTrack.Checked);
+            return new(1,pilot.Checked,content.Checked,trayOption.Checked,size.Width,size.Height,new(bindings.Map),
+                autoTrack.Checked,bindings.DialogSize.Width,bindings.DialogSize.Height);
         }
         void Apply(Preferences p)
         {
             bindings.Apply(p.Bindings);
+            bindings.DialogSize=p.HotkeysWidth>0 && p.HotkeysHeight>0 ? new Size(p.HotkeysWidth,p.HotkeysHeight) : Size.Empty;
             var screen=Screen.FromControl(this).WorkingArea;
             Size=new Size(Math.Clamp(p.Width,MinimumSize.Width,Math.Max(MinimumSize.Width,screen.Width)),Math.Clamp(p.Height,MinimumSize.Height,Math.Max(MinimumSize.Height,screen.Height)));
             trayOption.Checked=p.MinimizeToTray;content.Checked=p.IncludeContent;autoTrack.Checked=p.AutoTrack;pilot.Checked=p.Shortcuts;
@@ -99,7 +101,12 @@ internal sealed class DiagnosticForm : Form
         var menu=new MenuStrip{Dock=DockStyle.Top};
         ToolStripMenuItem Item(string title,string icon,Action action)=>new(title,UiArt.Image(icon),(_,_)=>action());
         var config=new ToolStripMenuItem("Настройки",UiArt.Image("gear"));
-        void EditKeys()=>bindings.Edit(this);
+        void EditKeys()
+        {
+            bindings.Edit(this);
+            try{Snapshot().Save(defaults);}
+            catch(Exception ex){MessageBox.Show(this,ex.Message,"Не удалось сохранить настройки");}
+        }
         keys.Click+=(_,_)=>EditKeys();
         config.DropDownItems.Add(Item("Горячие клавиши и справка…","keyboard",EditKeys));
         config.DropDownItems.Add(Item("Загрузить из файла…","upload",()=>Transfer(true)));

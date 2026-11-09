@@ -28,7 +28,7 @@ internal static class UiArt
     }
 }
 
-internal sealed record Preferences(int Version,bool Shortcuts,bool IncludeContent,bool MinimizeToTray,int Width,int Height,Dictionary<NavAction,Keys> Bindings,bool AutoTrack=false)
+internal sealed record Preferences(int Version,bool Shortcuts,bool IncludeContent,bool MinimizeToTray,int Width,int Height,Dictionary<NavAction,Keys> Bindings,bool AutoTrack=false,int HotkeysWidth=0,int HotkeysHeight=0)
 {
     private static readonly JsonSerializerOptions Options=new(){WriteIndented=true,Converters={new JsonStringEnumConverter()}};
     internal static Preferences Load(string path)

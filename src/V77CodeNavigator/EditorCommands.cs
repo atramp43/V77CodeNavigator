@@ -180,16 +180,49 @@ internal sealed partial class GlobalModuleJump
         if(action==NavAction.InspectMethod)
             return $"{declaration.Kind} {declaration.Name}, строки {declaration.Line}–{lastLine} ({lastLine-declaration.Line+1}).";
 
-        int targetLine=action==NavAction.MethodEnd?lastLine:declaration.Line;
-        await PlaceCaret(origin,targetLine);
-        if(action==NavAction.SelectMethod)
+        if(action is NavAction.SelectMethod or NavAction.SelectDocumentedMethod)
         {
-            if(lastLine>declaration.Line) SendKeys.SendWait($"+{{DOWN {lastLine-declaration.Line}}}");
-            SendKeys.SendWait("+{END}");
+            var lines=source.ReplaceLineEndings("\n").Split('\n');
+            int firstLine=declaration.Line;
+            if(action==NavAction.SelectDocumentedMethod)
+                (firstLine,lastLine)=DocumentedMethodLines(lines,firstLine,lastLine);
+
+            await PlaceCaret(origin,firstLine);
+            if(Coordinates(root)!=(firstLine,1)) SendKeys.SendWait("{HOME}");
+            if(Coordinates(root)!=(firstLine,1))
+                return "Не удалось установить каретку в начало первой строки метода.";
+
+            bool hasLineEnding=lastLine<lines.Length;
+            int endLine=hasLineEnding?lastLine+1:lastLine;
+            if(endLine>firstLine) SendKeys.SendWait($"+{{DOWN {endLine-firstLine}}}");
+            if(hasLineEnding)
+            {
+                if(Coordinates(root)!=(endLine,1))
+                    return "Не удалось подтвердить выделение окончания последней строки.";
+            }
+            else SendKeys.SendWait("+{END}");
             return $"Выделен метод {declaration.Name}.";
         }
 
+        int targetLine=action==NavAction.MethodEnd?lastLine:declaration.Line;
+        await PlaceCaret(origin,targetLine);
         Remember(origin);
         return $"Переход: {declaration.Name}, строка {targetLine}.";
+    }
+
+    private static (int First,int Last) DocumentedMethodLines(string[] lines,int first,int last)
+    {
+        const string border="//------------------------------------------------------------------------------";
+        if(first<4 || last>=lines.Length ||
+            lines[first-2].Trim()!=border || lines[last].Trim()!=border)
+            return (first,last);
+
+        for(int index=first-3;index>=0;index--)
+        {
+            if(!lines[index].TrimStart().StartsWith("//",StringComparison.Ordinal)) break;
+            if(lines[index].Trim()==border)
+                return index<first-3 ? (index+1,last+1) : (first,last);
+        }
+        return (first,last);
     }
 }

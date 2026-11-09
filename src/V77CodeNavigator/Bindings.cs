@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace V77CodeNavigator;
 
-internal enum NavAction { Definition, Variable, Occurrences, Methods, Line, Bookmark, NextBookmark, Back, Forward, FilterMethods, MethodStart, SelectMethod, CopyLine, SelectLine, InspectMethod, RefreshWindow, SelectAll, MethodEnd, SignatureHelp, CompleteName, ConfiguratorInfo, DuplicateLine }
+internal enum NavAction { Definition, Variable, Occurrences, Methods, Line, Bookmark, NextBookmark, Back, Forward, FilterMethods, MethodStart, SelectMethod, CopyLine, SelectLine, InspectMethod, RefreshWindow, SelectAll, MethodEnd, SignatureHelp, CompleteName, ConfiguratorInfo, DuplicateLine, SelectDocumentedMethod }
 
 internal sealed class Bindings
 {
@@ -23,9 +23,10 @@ internal sealed class Bindings
         [NavAction.SignatureHelp]=Keys.Control|Keys.Shift|Keys.P,
         [NavAction.CompleteName]=Keys.Control|Keys.Space,
         [NavAction.ConfiguratorInfo]=Keys.Control|Keys.Alt|Keys.F6,
-        [NavAction.DuplicateLine]=Keys.Control|Keys.Alt|Keys.D
+        [NavAction.DuplicateLine]=Keys.Control|Keys.Alt|Keys.D,
+        [NavAction.SelectDocumentedMethod]=Keys.Control|Keys.Alt|Keys.Shift|Keys.S
     };
-    private static readonly string[] Labels={"Определение процедуры / функции","Объявление переменной","Строки с вхождениями слова","Список процедур и функций","Перейти к строке","Поставить / снять закладку","Следующая закладка","Назад по переходам","Вперёд по переходам","Методы с фильтром","В начало текущего метода","Выделить текущий метод","Копировать текущую строку","Выделить текущую строку","Сведения о текущем методе","Перерисовать окно Конфигуратора","Выделить весь текст модуля","В конец текущего метода","Параметры функции или процедуры","Дополнить имя функции или процедуры","Пути Конфигуратора и текущей базы","Дублировать текущую строку ниже"};
+    private static readonly string[] Labels={"Определение процедуры / функции","Объявление переменной","Строки с вхождениями слова","Список процедур и функций","Перейти к строке","Поставить / снять закладку","Следующая закладка","Назад по переходам","Вперёд по переходам","Методы с фильтром","В начало текущего метода","Выделить текущий метод","Копировать текущую строку","Выделить текущую строку","Сведения о текущем методе","Перерисовать окно Конфигуратора","Выделить весь текст модуля","В конец текущего метода","Параметры функции или процедуры","Дополнить имя функции или процедуры","Пути Конфигуратора и текущей базы","Дублировать текущую строку ниже","Выделить текущий метод с описанием"};
     private static string FileName => Path.Combine(Program.ProjectRoot(),"hotkeys.json");
     internal Bindings(bool useSaved=true)
     {
@@ -78,10 +79,18 @@ internal sealed class Bindings
         Keys code=k & Keys.KeyCode;
         return (k & ~(Keys.KeyCode|Keys.Control|Keys.Alt|Keys.Shift))==0 && (code is >=Keys.F1 and <=Keys.F24 || ((k & (Keys.Control|Keys.Alt))!=0 && code is >=Keys.A and <=Keys.Z or Keys.Left or Keys.Right or Keys.Space));
     }
+    internal Size DialogSize { get; set; }
+
     internal void Edit(Form owner)
     {
         using var form=new Form{Text="Справка и настройка горячих клавиш",ClientSize=new Size(680,580),
             MinimumSize=new Size(500,360),StartPosition=FormStartPosition.CenterParent,MinimizeBox=false};
+        if(!DialogSize.IsEmpty)
+        {
+            var area=Screen.FromControl(owner).WorkingArea.Size;
+            form.Size=new Size(Math.Clamp(DialogSize.Width,form.MinimumSize.Width,Math.Max(area.Width,form.MinimumSize.Width)),
+                Math.Clamp(DialogSize.Height,form.MinimumSize.Height,Math.Max(area.Height,form.MinimumSize.Height)));
+        }
         var tabs=new TabControl{Dock=DockStyle.Fill};
         var navigator=new TabPage("Навигатор"){AutoScroll=true};
         var native=new TabPage("Конфигуратор 1С 7.7");
@@ -125,6 +134,7 @@ internal sealed class Bindings
             catch(IOException ex){MessageBox.Show(form,ex.Message);}
         };
         form.ShowDialog(owner);
+        DialogSize=form.WindowState==FormWindowState.Normal ? form.Size : form.RestoreBounds.Size;
     }
     private static string Format(Keys k)=>k==Keys.None?"Отключено":new KeysConverter().ConvertToString(k)??"";
 }
