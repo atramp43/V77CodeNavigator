@@ -139,7 +139,7 @@ internal sealed partial class GlobalModuleJump : IDisposable
         if(action==NavAction.FilterMethods) return await FilterMethods(root,editor,pid);
         if(action is NavAction.MethodStart or NavAction.MethodEnd or NavAction.SelectMethod or NavAction.CopyLine or NavAction.DuplicateLine or NavAction.SelectLine or NavAction.InspectMethod or NavAction.SelectAll or NavAction.SignatureHelp or NavAction.CompleteName)
             return await EditCommand(root,editor,pid,action);
-        var origin=action==NavAction.Definition ? CaptureSpot(root,editor,pid) : null;
+        var origin=action is NavAction.Definition or NavAction.Variable ? CaptureSpot(root,editor,pid) : null;
         int direct=action switch { NavAction.Methods=>33298, NavAction.Line=>33283, NavAction.Bookmark=>33290, NavAction.NextBookmark=>33291, _=>0 };
         if(direct!=0){if(Native.GetForegroundWindow()!=root || !Target(root,out var f,out _) || f!=editor || !HasCommand(root,direct) || !PostMessageW(root,273,direct,0)) throw new InvalidOperationException("Команда недоступна.");return "Команда передана Конфигуратору.";}
         nint d=await Open(root,editor,pid,"Поиск",57636);
@@ -155,6 +155,13 @@ internal sealed partial class GlobalModuleJump : IDisposable
         if(!Regex.IsMatch(word,@"\A[\p{L}_][\p{L}\p{Nd}_]{0,509}\z")) return "Поместите курсор внутрь имени процедуры или функции.";
         for(int i=0;i<60 && Native.IsWindowVisible(d);i++) await Task.Delay(50);
         await Task.Delay(200);
+        if(action==NavAction.Variable && !IsGlobal(editor,root))
+        {
+            if(origin==null) return "Координаты каретки недоступны.";
+            var variableResult=await FindVariableInModules(origin,word);
+            if(variableResult.StartsWith("Переход:")) Remember(origin);
+            return variableResult;
+        }
         if(action is NavAction.Variable or NavAction.Occurrences) return await Search(root,editor,pid,word,action);
         var result=await Definition(root,editor,pid,word,true);
         if(result.StartsWith("Переход:") && origin!=null) Remember(origin);
@@ -215,11 +222,11 @@ internal sealed partial class GlobalModuleJump : IDisposable
         if(global!=0) Read(mdi,0x222,global,0);
         else
         {
-            var config=windows.SingleOrDefault(h=>Native.Caption(h)=="Конфигурация");
+            var config=windows.SingleOrDefault(h=>Native.Caption(h).TrimEnd(' ','*')=="Конфигурация");
             if(config!=0) Read(mdi,0x222,config,0);
             else if(HasCommand(root,33188)) PostMessageW(root,273,33188,0);
-            for(int i=0;i<60 && !HasCommand(root,33272);i++) await Task.Delay(50);
-            if(Native.GetForegroundWindow()!=root || !HasCommand(root,33272)) throw new InvalidOperationException("Команда открытия глобального модуля недоступна.");
+            for(int i=0;i<60 && Native.GetForegroundWindow()==root && !CanOpenGlobal();i++) await Task.Delay(50);
+            if(Native.GetForegroundWindow()!=root || !CanOpenGlobal()) throw new InvalidOperationException("Команда открытия глобального модуля недоступна.");
             PostMessageW(root,273,33272,0);
         }
         for(int i=0;i<80;i++)
@@ -228,6 +235,38 @@ internal sealed partial class GlobalModuleJump : IDisposable
             if(Native.GetForegroundWindow()==root && Target(root,out var focus,out owner) && owner==pid && IsGlobal(focus,root)) return focus;
         }
         throw new InvalidOperationException("Глобальный модуль не открылся.");
+
+        bool CanOpenGlobal()=>(GetMenuState(GetMenu(root),33272,0)&3)==0;
+    }
+
+    private static async Task<string> FindVariableInModules(Spot origin,string word)
+    {
+        var source=await ReadModuleViaClipboard(origin);
+        int line=VariableDeclarations.FindInScope(source,word,origin.Line);
+        if(line!=0)
+        {
+            await PlaceCaret(origin,line);
+            return $"Переход: {origin.Title}, строка {line} ({word}).";
+        }
+
+        var globalEditor=await ActivateGlobal(origin.Root,origin.Editor,origin.Pid);
+        var global=CaptureSpot(origin.Root,globalEditor,origin.Pid);
+        if(global!=null)
+        {
+            source=await ReadModuleViaClipboard(global);
+            line=VariableDeclarations.FindInScope(source,word,null);
+            if(line!=0)
+            {
+                await PlaceCaret(global,line);
+                return $"Переход: Глобальный модуль, строка {line} ({word}).";
+            }
+        }
+
+        if(Native.GetForegroundWindow()==origin.Root && Target(origin.Root,out var focus,out var pid)
+            && focus==globalEditor && pid==origin.Pid && Native.GetParent(origin.Document)==origin.Mdi)
+            Read(origin.Mdi,0x222,origin.Document,0);
+        return global==null ? "Координаты каретки в глобальном модуле недоступны."
+            : "Явное объявление в текущей области и глобальном модуле не найдено: "+word;
     }
     private static async Task<string> Search(nint root,nint editor,uint pid,string word,NavAction action)
     {
