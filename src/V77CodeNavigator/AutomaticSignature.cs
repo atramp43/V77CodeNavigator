@@ -108,8 +108,13 @@ internal sealed partial class GlobalModuleJump
         int y=bottom.Y+5+popup.Height<=area.Bottom ? bottom.Y+5 : top.Y-5-popup.Height;
         popup.Location=new Point(Math.Clamp(bottom.X,area.Left,Math.Max(area.Left,area.Right-popup.Width)),
             Math.Clamp(y,area.Top,Math.Max(area.Top,area.Bottom-popup.Height)));
+        // Avoid the WinForms activation path and cross-process window ownership.
+        if(!popup.ShowPassive())
+        {
+            popup.Dispose();
+            return;
+        }
         signaturePopup=popup;
-        popup.Show(new DialogOwner(module.Root));
         var expires=Environment.TickCount64+10000;
         signatureTimer=new System.Windows.Forms.Timer{Interval=150};
         signatureTimer.Tick+=(_,_)=>{
@@ -131,20 +136,48 @@ internal sealed partial class GlobalModuleJump
 
     private sealed class SignaturePopup : Form
     {
+        private readonly string signature;
+
+        [DllImport("user32.dll")]
+        private static extern bool SetWindowPos(nint window,nint insertAfter,int x,int y,int width,int height,uint flags);
+
         internal SignaturePopup(string signature)
         {
+            this.signature=signature;
             Text="Параметры вызова";
             FormBorderStyle=FormBorderStyle.None;
             StartPosition=FormStartPosition.Manual;
             ShowInTaskbar=false;
-            TopMost=true;
-            AutoSize=true;
-            AutoSizeMode=AutoSizeMode.GrowAndShrink;
-            Controls.Add(new Label{Text=signature,AutoSize=true,MaximumSize=new Size(560,0),
-                BackColor=SystemColors.Info,ForeColor=SystemColors.InfoText,Padding=new Padding(8)});
-            Size=GetPreferredSize(Size.Empty);
+            BackColor=SystemColors.Info;
+            ForeColor=SystemColors.InfoText;
+            var textSize=TextRenderer.MeasureText(signature,Font,new Size(544,int.MaxValue),TextFlags);
+            ClientSize=new Size(textSize.Width+16,textSize.Height+16);
         }
-        protected override bool ShowWithoutActivation=>true;
+
+        private const TextFormatFlags TextFlags=TextFormatFlags.WordBreak|TextFormatFlags.NoPrefix;
+
+        internal bool ShowPassive()
+        {
+            const uint noActivate=0x0010, showWindow=0x0040;
+            return SetWindowPos(Handle,-1,Left,Top,Width,Height,noActivate|showWindow);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            TextRenderer.DrawText(e.Graphics,signature,Font,Rectangle.Inflate(ClientRectangle,-8,-8),ForeColor,TextFlags);
+        }
+
+        protected override void WndProc(ref Message message)
+        {
+            const int mouseActivate=0x0021, noActivateAndEat=4;
+            if(message.Msg==mouseActivate)
+            {
+                message.Result=noActivateAndEat;
+                return;
+            }
+            base.WndProc(ref message);
+        }
+
         protected override CreateParams CreateParams
         {
             get { var options=base.CreateParams; options.ExStyle|=0x08000000; return options; }
