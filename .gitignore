@@ -2,6 +2,7 @@
 **/obj/
 .work/
 builds/
+/Release/
 logs/*
 !logs/.gitkeep
 
