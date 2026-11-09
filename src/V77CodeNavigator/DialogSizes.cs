@@ -20,13 +20,9 @@ internal static class DialogSizes
 
     internal static DialogResult Show(Form form,string key,IWin32Window owner)
     {
-        if(Sizes.TryGetValue(key,out var size) && size.Width>0 && size.Height>0)
-        {
-            var area=Screen.FromHandle(owner.Handle).WorkingArea.Size;
-            form.Size=new Size(
-                Math.Clamp(size.Width,Math.Max(1,form.MinimumSize.Width),Math.Max(area.Width,form.MinimumSize.Width)),
-                Math.Clamp(size.Height,Math.Max(1,form.MinimumSize.Height),Math.Max(area.Height,form.MinimumSize.Height)));
-        }
+        var preferred=Sizes.TryGetValue(key,out var size) && size.Width>0 && size.Height>0
+            ? size : form.Size;
+        Fit(form,preferred,Screen.FromHandle(owner.Handle).WorkingArea.Size);
 
         var result=form.ShowDialog(owner);
         var actual=form.WindowState==FormWindowState.Normal ? form.Size : form.RestoreBounds.Size;
@@ -40,5 +36,14 @@ internal static class DialogSizes
         catch(IOException){}
         catch(UnauthorizedAccessException){}
         return result;
+    }
+
+    internal static void Fit(Form form,Size preferred,Size area)
+    {
+        form.MinimumSize=new Size(Math.Min(form.MinimumSize.Width,area.Width),
+            Math.Min(form.MinimumSize.Height,area.Height));
+        form.Size=new Size(
+            Math.Clamp(preferred.Width,Math.Max(1,form.MinimumSize.Width),area.Width),
+            Math.Clamp(preferred.Height,Math.Max(1,form.MinimumSize.Height),area.Height));
     }
 }

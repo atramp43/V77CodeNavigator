@@ -52,6 +52,8 @@ internal sealed partial class GlobalModuleJump
         using var tips=new ToolTip();
         using var copyIcon=CreateCopyIcon();
         var fields=new (string Label,string Value)[]{("Путь к 1cv7.exe",exe),("Путь к базе",basePath),("Пользователь 1С",user)};
+        int longest=fields.Max(field=>TextRenderer.MeasureText(field.Value,dialog.Font).Width);
+        dialog.ClientSize=new Size(Math.Max(820,longest+240),300);
         var buttons=new Button[fields.Length];
         for(int row=0;row<fields.Length;row++)
         {

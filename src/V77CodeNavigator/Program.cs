@@ -66,7 +66,8 @@ internal sealed class DiagnosticForm : Form
         string windowTitle=$"V77CodeNavigator v{Application.ProductVersion.Split('+', 2)[0]}";
         Text=windowTitle;
         AutoScaleMode=AutoScaleMode.Dpi;
-        MinimumSize=new Size(520,440);Size=new Size(760,540);StartPosition=FormStartPosition.CenterScreen;
+        MinimumSize=new Size(520,440);StartPosition=FormStartPosition.CenterScreen;
+        DialogSizes.Fit(this,new Size(1040,720),Screen.FromPoint(Cursor.Position).WorkingArea.Size);
         var appIcon=UiArt.AppIcon();Icon=appIcon;
         var bindings=new Bindings();
         var pilot=new CheckBox{Text="Горячие клавиши в редакторе 1С",AutoSize=true};
@@ -105,8 +106,7 @@ internal sealed class DiagnosticForm : Form
         {
             bindings.Apply(p.Bindings);
             bindings.DialogSize=p.HotkeysWidth>0 && p.HotkeysHeight>0 ? new Size(p.HotkeysWidth,p.HotkeysHeight) : Size.Empty;
-            var screen=Screen.FromControl(this).WorkingArea;
-            Size=new Size(Math.Clamp(p.Width,MinimumSize.Width,Math.Max(MinimumSize.Width,screen.Width)),Math.Clamp(p.Height,MinimumSize.Height,Math.Max(MinimumSize.Height,screen.Height)));
+            DialogSizes.Fit(this,new Size(p.Width,p.Height),Screen.FromControl(this).WorkingArea.Size);
             trayOption.Checked=p.MinimizeToTray;content.Checked=p.IncludeContent;autoTrack.Checked=p.AutoTrack;pilot.Checked=p.Shortcuts;
         }
         void Transfer(bool load)
@@ -163,7 +163,11 @@ internal sealed class DiagnosticForm : Form
         body.Controls.Add(actions,0,1);body.Controls.Add(hint,0,2);body.Controls.Add(pilot,0,3);body.Controls.Add(content,0,4);body.Controls.Add(trayOption,0,5);body.Controls.Add(autoTrack,0,6);body.Controls.Add(output,0,7);
         Controls.Add(body);Controls.Add(menu);
         Shown+=(_,_)=>{
-            try{if(File.Exists(defaults)) Apply(Preferences.Load(defaults));}
+            try
+            {
+                if(File.Exists(defaults)) Apply(Preferences.Load(defaults));
+                else { pilot.Checked=true;autoTrack.Checked=true; }
+            }
             catch(Exception ex){output.Text="Не удалось загрузить настройки: "+ex.Message;}
             if(Environment.GetCommandLineArgs().Any(arg=>arg is "--f10" or "--f12"))pilot.Checked=true;
         };

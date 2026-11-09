@@ -33,9 +33,10 @@ internal sealed partial class GlobalModuleJump
         }
 
         using var form=new Form{Text="Дополнение имени",
-            StartPosition=FormStartPosition.CenterParent,ClientSize=new Size(640,300),MinimumSize=new Size(420,250),ShowInTaskbar=true,
+            StartPosition=FormStartPosition.CenterParent,ClientSize=new Size(860,Math.Clamp(250+methods.Length*18,360,640)),
+            MinimumSize=new Size(420,250),ShowInTaskbar=true,
             MinimizeBox=false,MaximizeBox=false,KeyPreview=true};
-        var list=new ListBox{Dock=DockStyle.Fill};
+        var list=new ListBox{Dock=DockStyle.Fill,HorizontalScrollbar=true};
         foreach(var method in methods) list.Items.Add($"{method.Name} · строка {method.Line}");
         var signature=new TextBox{Dock=DockStyle.Fill,Multiline=true,ReadOnly=true,ScrollBars=ScrollBars.Vertical};
         var button=new Button{Text="Дополнить",AutoSize=true,Anchor=AnchorStyles.Right,Padding=new Padding(12,4,12,4),DialogResult=DialogResult.OK};

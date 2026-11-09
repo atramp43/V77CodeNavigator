@@ -327,7 +327,8 @@ internal sealed partial class GlobalModuleJump : IDisposable
             if(VariableDeclarations.Matches(row[(start+3)..],word)) hits.Add(new(i,row));
         }
         if(hits.Count==0) return "Явное объявление или параметр не найдено: "+word;
-        using var form=new Form{Text="Объявления: "+word,Size=new Size(900,370),StartPosition=FormStartPosition.CenterScreen};
+        using var form=new Form{Text="Объявления: "+word,Size=new Size(1120,Math.Clamp(140+Math.Min(hits.Count,35)*20,420,840)),
+            StartPosition=FormStartPosition.CenterParent};
         var items=new ListBox{Dock=DockStyle.Fill,HorizontalScrollbar=true};
         items.Items.AddRange(hits.ToArray());items.SelectedIndex=0;
         var choose=new Button{Text="Перейти",Dock=DockStyle.Bottom,DialogResult=DialogResult.OK};

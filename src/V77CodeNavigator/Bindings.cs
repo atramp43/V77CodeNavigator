@@ -85,19 +85,15 @@ internal sealed class Bindings
     {
         using var form=new Form{Text="Справка и настройка горячих клавиш",ClientSize=new Size(680,580),
             MinimumSize=new Size(500,360),StartPosition=FormStartPosition.CenterParent,MinimizeBox=false};
-        if(!DialogSize.IsEmpty)
-        {
-            var area=Screen.FromControl(owner).WorkingArea.Size;
-            form.Size=new Size(Math.Clamp(DialogSize.Width,form.MinimumSize.Width,Math.Max(area.Width,form.MinimumSize.Width)),
-                Math.Clamp(DialogSize.Height,form.MinimumSize.Height,Math.Max(area.Height,form.MinimumSize.Height)));
-        }
         var tabs=new TabControl{Dock=DockStyle.Fill};
-        var navigator=new TabPage("Навигатор"){AutoScroll=true};
+        var navigator=new TabPage("Навигатор");
         var native=new TabPage("Конфигуратор 1С 7.7");
         tabs.TabPages.AddRange(new[]{navigator,native});
         form.Controls.Add(tabs);
         var grid=new TableLayoutPanel{AutoSize=true,Dock=DockStyle.Top,Padding=new Padding(12),ColumnCount=2};
-        navigator.Controls.Add(grid);
+        var commands=new Panel{Dock=DockStyle.Fill,AutoScroll=true};
+        commands.Controls.Add(grid);
+        navigator.Controls.Add(commands);
         var nativeList=new ListBox{Dock=DockStyle.Fill,HorizontalScrollbar=true};
         foreach(var item in Reserved.Concat(NativeShortcuts).GroupBy(p=>p.Key).Select(g=>g.Last()).OrderBy(p=>Format(p.Key)))
             nativeList.Items.Add($"{Format(item.Key)}   {item.Value}");
@@ -127,12 +123,21 @@ internal sealed class Bindings
             };
             grid.Controls.Add(box,1,row);
         }
-        var save=new Button{Text="Сохранить",AutoSize=true};UiArt.Button(save,"check2");grid.Controls.Add(save,1,Map.Count+1);
+        var footer=new FlowLayoutPanel{Dock=DockStyle.Bottom,AutoSize=true,
+            FlowDirection=FlowDirection.RightToLeft,Padding=new Padding(8)};
+        var save=new Button{Text="Сохранить",AutoSize=true};
+        UiArt.Button(save,"check2");footer.Controls.Add(save);
+        navigator.Controls.Add(footer);
+        commands.BringToFront();
         save.Click+=(_,_)=>{
             if(next.Values.Where(k=>k!=Keys.None).GroupBy(k=>k).Any(g=>g.Count()>1)){MessageBox.Show(form,"Одно сочетание назначено нескольким командам.");return;}
             try{File.WriteAllText(FileName+".tmp",JsonSerializer.Serialize(next));File.Move(FileName+".tmp",FileName,true);Map=next;form.Close();}
             catch(IOException ex){MessageBox.Show(form,ex.Message);}
         };
+        form.PerformLayout();
+        var preferred=new Size(820,grid.GetPreferredSize(Size.Empty).Height+
+            footer.GetPreferredSize(Size.Empty).Height+100);
+        DialogSizes.Fit(form,DialogSize.IsEmpty?preferred:DialogSize,Screen.FromControl(owner).WorkingArea.Size);
         form.ShowDialog(owner);
         DialogSize=form.WindowState==FormWindowState.Normal ? form.Size : form.RestoreBounds.Size;
     }

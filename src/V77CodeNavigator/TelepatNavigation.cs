@@ -124,7 +124,7 @@ internal sealed partial class GlobalModuleJump
             int count=(int)Read(list,395,0,0);
             var rows=new List<Hit>();
             for(int i=0;i<count;i++) rows.Add(new(i,ListText(list,i)));
-            using var form=new Form{Text="Методы модуля",Size=new Size(540,560),StartPosition=FormStartPosition.CenterParent};
+            using var form=new Form{Text="Методы модуля",Size=new Size(820,760),StartPosition=FormStartPosition.CenterParent};
             var query=new TextBox{Dock=DockStyle.Top,PlaceholderText="Часть имени процедуры или функции"};
             var matches=new ListBox{Dock=DockStyle.Fill};
             var choose=new Button{Text="Перейти",Dock=DockStyle.Bottom,DialogResult=DialogResult.OK};
