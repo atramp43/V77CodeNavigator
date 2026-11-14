@@ -165,18 +165,28 @@ internal sealed partial class GlobalModuleJump
             var lines=source.ReplaceLineEndings("\n").Split('\n');
             if(origin.Line>lines.Length) return "Текущая строка недоступна.";
             string current=lines[origin.Line-1];
+            string expected;
             if(origin.Line<lines.Length)
             {
+                var expectedLines=lines.ToList();
+                expectedLines.Insert(origin.Line,current);
+                expected=string.Join("\n",expectedLines);
                 await PlaceCaret(origin,origin.Line+1);
                 if(Coordinates(root)!=(origin.Line+1,1)) return "Не удалось установить каретку в начало следующей строки.";
                 await PasteEditorText(origin,current+"\r\n");
             }
             else
             {
+                expected=source.ReplaceLineEndings("\n")+"\n"+current;
                 await PlaceCaret(origin,origin.Line);
                 SendKeys.SendWait("{END}");
                 await PasteEditorText(origin,"\r\n"+current);
             }
+            var inserted=CaptureSpot(root,editor,pid);
+            if(inserted==null) return "Не удалось проверить результат дублирования.";
+            var actual=await ReadModuleViaClipboard(inserted);
+            if(actual.ReplaceLineEndings("\n")!=expected)
+                return "Текст после вставки не совпал с ожидаемым. Проверьте строку перед повтором CA-D.";
             return $"Строка {origin.Line} продублирована.";
         }
         if(action==NavAction.CopyLine)

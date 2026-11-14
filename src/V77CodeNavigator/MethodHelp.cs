@@ -88,8 +88,10 @@ internal sealed partial class GlobalModuleJump
         try
         {
             var before=Coordinates(origin.Root);
-            Read(origin.Root,273,57637,0);
-            // The legacy editor can defer clipboard consumption until after WM_COMMAND.
+            // Queue WM_COMMAND so this STA can service clipboard/OLE messages
+            // while the external editor executes Paste.
+            if(!PostMessageW(origin.Root,273,57637,0))
+                throw new InvalidOperationException("Не удалось передать команду вставки.");
             for(int i=0;i<40 && Coordinates(origin.Root)==before;i++)
             {
                 await Task.Delay(25);
