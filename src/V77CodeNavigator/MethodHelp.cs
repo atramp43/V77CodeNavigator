@@ -43,7 +43,6 @@ internal sealed partial class GlobalModuleJump
         list.SelectedIndexChanged+=(_,_)=>{
             var method=methods[list.SelectedIndex];
             signature.Text=ModuleParser.Signature(source,method).ReplaceLineEndings("\r\n");
-            button.Enabled=!method.Name.Equals(word.Value,StringComparison.Ordinal);
         };
         var layout=new TableLayoutPanel{Dock=DockStyle.Fill,Padding=new Padding(10),ColumnCount=1,RowCount=3};
         layout.RowStyles.Add(new RowStyle(SizeType.Percent,42));
@@ -64,14 +63,22 @@ internal sealed partial class GlobalModuleJump
             return "Позиция каретки изменилась. Повторите дополнение.";
 
         var name=methods[list.SelectedIndex].Name;
-        if(name.Equals(word.Value,StringComparison.Ordinal)) return "Имя уже введено полностью.";
-        SendKeys.SendWait($"+{{LEFT {word.Length}}}");
-        if(Coordinates(origin.Root)!=(origin.Line,origin.Column-word.Length))
-            return "Не удалось выделить имя для замены.";
-        await PasteEditorText(origin,name);
+        bool hasBracket=column<line.Length && line[column]=='(';
+        if(!name.Equals(word.Value,StringComparison.Ordinal) || !hasBracket)
+        {
+            SendKeys.SendWait($"+{{LEFT {word.Length}}}");
+            if(Coordinates(origin.Root)!=(origin.Line,origin.Column-word.Length))
+                return "Не удалось выделить имя для замены.";
+            await PasteEditorText(origin,name+(hasBracket?"":"("));
+        }
+        if(hasBracket)
+        {
+            CheckEditor(origin.Root,origin.Editor,origin.Pid);
+            SendKeys.SendWait("{RIGHT}");
+        }
         typedName.Clear();
-        typedName.Append(name);
-        return $"Дополнено имя {name}.";
+        ShowSignature(origin,ModuleParser.Signature(source,methods[list.SelectedIndex]));
+        return $"Дополнен вызов {name}(.";
     }
     private static async Task PasteEditorText(Spot origin,string text)
     {
