@@ -30,9 +30,8 @@ internal sealed partial class GlobalModuleJump
 
     private void ObserveSignatureKey(int vk,Keys chord,nint data)
     {
-        var index=signatureIndex!;
-        var module=index.Module;
-        if(Native.GetForegroundWindow()!=module.Root || (chord&(Keys.Control|Keys.Alt))!=0)
+        var root=Native.GetForegroundWindow();
+        if((chord&(Keys.Control|Keys.Alt))!=0 || !Target(root,out var editor,out var pid))
         {
             typedName.Clear();
             CloseSignature();
@@ -40,7 +39,7 @@ internal sealed partial class GlobalModuleJump
         }
 
         if(vk is (int)Keys.ShiftKey or (int)Keys.LShiftKey or (int)Keys.RShiftKey) return;
-        var thread=Native.GetWindowThreadProcessId(module.Root,out _);
+        var thread=Native.GetWindowThreadProcessId(root,out _);
         var state=new byte[256];
         if((chord&Keys.Shift)!=0) state[(int)Keys.ShiftKey]=128;
         if(Control.IsKeyLocked(Keys.CapsLock)) state[(int)Keys.CapsLock]=1;
@@ -54,7 +53,29 @@ internal sealed partial class GlobalModuleJump
             ui.BeginInvoke(new Action(async ()=>{
                 // Let the Configurator process the bracket before reading its caret.
                 await Task.Delay(80);
-                if(signatureIndex==index) ShowAutomaticSignature(index,name);
+                if(busy || Native.GetForegroundWindow()!=root ||
+                    !Target(root,out var current,out var owner) || current!=editor || owner!=pid) return;
+                busy=true;
+                try
+                {
+                    if(signatureIndex is { } cached && cached.Module.Root==root &&
+                        cached.Module.Editor==editor && cached.Module.Pid==pid)
+                    {
+                        ShowAutomaticSignature(cached,name);
+                        return;
+                    }
+                    for(int i=0;i<40 && (GetAsyncKeyState(16)<0 || GetAsyncKeyState(17)<0 || GetAsyncKeyState(18)<0);i++)
+                        await Task.Delay(25);
+                    if(GetAsyncKeyState(16)<0 || GetAsyncKeyState(17)<0 || GetAsyncKeyState(18)<0) return;
+                    var origin=CaptureSpot(root,editor,pid);
+                    if(origin==null) return;
+                    // Initialize once for a newly opened module. Subsequent brackets
+                    // use the index without selecting text while the user types.
+                    var source=await ReadModuleViaClipboard(origin);
+                    show(await ShowMethodHelp(origin,source,false));
+                }
+                catch(Exception e){show(e.Message);}
+                finally{busy=false;}
             }));
             return;
         }
@@ -80,7 +101,6 @@ internal sealed partial class GlobalModuleJump
 
         if(!index.Signatures.TryGetValue(name,out var signature))
         {
-            if(name.Length!=0) return;
             var coordinates=Coordinates(module.Root);
             if(coordinates is not { } position || position.Line>index.Lines.Length) return;
             var line=index.Lines[position.Line-1];

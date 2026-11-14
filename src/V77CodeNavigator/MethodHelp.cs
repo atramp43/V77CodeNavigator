@@ -6,7 +6,7 @@ namespace V77CodeNavigator;
 
 internal sealed partial class GlobalModuleJump
 {
-    private string ShowMethodHelp(Spot origin,string source,bool complete)
+    private async Task<string> ShowMethodHelp(Spot origin,string source,bool complete)
     {
         IndexSignatures(origin,source);
         var lines=source.ReplaceLineEndings("\n").Split('\n');
@@ -68,18 +68,38 @@ internal sealed partial class GlobalModuleJump
         SendKeys.SendWait($"+{{LEFT {word.Length}}}");
         if(Coordinates(origin.Root)!=(origin.Line,origin.Column-word.Length))
             return "Не удалось выделить имя для замены.";
-        PasteEditorText(origin,name);
+        await PasteEditorText(origin,name);
         typedName.Clear();
         typedName.Append(name);
         return $"Дополнено имя {name}.";
     }
-    private static void PasteEditorText(Spot origin,string text)
+    private static async Task PasteEditorText(Spot origin,string text)
     {
         CheckEditor(origin.Root,origin.Editor,origin.Pid);
         var saved=Clipboard.GetDataObject();
-        Clipboard.SetText(text);
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        var data=new DataObject();
+        data.SetData(DataFormats.UnicodeText,false,text);
+        data.SetData(DataFormats.Text,false,new MemoryStream(
+            System.Text.Encoding.GetEncoding(1251).GetBytes(text+"\0")));
+        data.SetData(DataFormats.Locale,false,new MemoryStream(BitConverter.GetBytes(0x0419)));
+        Clipboard.SetDataObject(data,true);
         uint staged=GetClipboardSequenceNumber();
-        try{Read(origin.Root,273,57637,0);}
+        try
+        {
+            var before=Coordinates(origin.Root);
+            Read(origin.Root,273,57637,0);
+            // The legacy editor can defer clipboard consumption until after WM_COMMAND.
+            for(int i=0;i<40 && Coordinates(origin.Root)==before;i++)
+            {
+                await Task.Delay(25);
+                CheckEditor(origin.Root,origin.Editor,origin.Pid);
+            }
+            await Task.Delay(100);
+            CheckEditor(origin.Root,origin.Editor,origin.Pid);
+            if(Coordinates(origin.Root)==before)
+                throw new InvalidOperationException("Редактор не подтвердил вставку текста.");
+        }
         finally
         {
             if(GetClipboardSequenceNumber()==staged)

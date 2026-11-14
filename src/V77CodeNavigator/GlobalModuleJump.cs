@@ -73,7 +73,7 @@ internal sealed partial class GlobalModuleJump : IDisposable
                     if(GetAsyncKeyState(16)<0) chord|=Keys.Shift;
                     if(GetAsyncKeyState(17)<0) chord|=Keys.Control;
                     if(GetAsyncKeyState(18)<0) chord|=Keys.Alt;
-                    if(!busy && signatureIndex!=null) ObserveSignatureKey(vk,chord,data);
+                    if(!busy) ObserveSignatureKey(vk,chord,data);
                     if(!busy && bindings.Map.ContainsValue(chord))
                     {
                         var root=Native.GetForegroundWindow();

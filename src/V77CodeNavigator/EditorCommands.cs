@@ -73,7 +73,7 @@ internal sealed partial class GlobalModuleJump
             copied=GetClipboardSequenceNumber();
             if(copied==before || !Clipboard.ContainsText())
                 throw new InvalidOperationException("Редактор не передал текст модуля в буфер обмена.");
-            return Clipboard.GetText().Replace("\r\r\n","\r\n");
+            return ReadConfiguratorClipboard().Replace("\r\r\n","\r\n");
         }
         finally
         {
@@ -88,7 +88,7 @@ internal sealed partial class GlobalModuleJump
             finally
             {
                 await PlaceCaret(origin,origin.Line);
-                if(origin.Column>1) SendKeys.SendWait($"{{RIGHT {origin.Column-1}}}");
+                await RestoreColumn(origin);
             }
         }
     }
@@ -109,6 +109,30 @@ internal sealed partial class GlobalModuleJump
             throw new InvalidOperationException($"Редактор не перешёл к строке {line}.");
         Read(origin.Editor,256,(nint)Keys.Home,1);
         Read(origin.Editor,257,(nint)Keys.Home,unchecked((int)0xc0000001));
+        if(Coordinates(origin.Root)?.Column!=1)
+        {
+            Read(origin.Editor,256,(nint)Keys.Home,1);
+            Read(origin.Editor,257,(nint)Keys.Home,unchecked((int)0xc0000001));
+        }
+        if(Coordinates(origin.Root)!=(line,1))
+            throw new InvalidOperationException("Не удалось установить каретку в начало строки.");
+    }
+
+    private static async Task RestoreColumn(Spot origin)
+    {
+        for(int i=0;i<16384;i++)
+        {
+            CheckEditor(origin.Root,origin.Editor,origin.Pid);
+            var before=Coordinates(origin.Root);
+            if(before==(origin.Line,origin.Column)) return;
+            if(before==null || before.Value.Line!=origin.Line) break;
+            var key=before.Value.Column<origin.Column ? Keys.Right : Keys.Left;
+            Read(origin.Editor,256,(nint)key,1);
+            Read(origin.Editor,257,(nint)key,unchecked((int)0xc0000001));
+            if(Coordinates(origin.Root)==before) break;
+            if(i%32==31) await Task.Yield();
+        }
+        throw new InvalidOperationException("Не удалось восстановить исходную позицию каретки.");
     }
 
     private async Task<string> EditCommand(nint root,nint editor,uint pid,NavAction action)
@@ -135,7 +159,7 @@ internal sealed partial class GlobalModuleJump
 
         var source=await ReadModuleViaClipboard(origin);
         if(action is NavAction.SignatureHelp or NavAction.CompleteName)
-            return ShowMethodHelp(origin,source,action==NavAction.CompleteName);
+            return await ShowMethodHelp(origin,source,action==NavAction.CompleteName);
         if(action==NavAction.DuplicateLine)
         {
             var lines=source.ReplaceLineEndings("\n").Split('\n');
@@ -145,13 +169,13 @@ internal sealed partial class GlobalModuleJump
             {
                 await PlaceCaret(origin,origin.Line+1);
                 if(Coordinates(root)!=(origin.Line+1,1)) return "Не удалось установить каретку в начало следующей строки.";
-                PasteEditorText(origin,current+"\r\n");
+                await PasteEditorText(origin,current+"\r\n");
             }
             else
             {
                 await PlaceCaret(origin,origin.Line);
                 SendKeys.SendWait("{END}");
-                PasteEditorText(origin,"\r\n"+current);
+                await PasteEditorText(origin,"\r\n"+current);
             }
             return $"Строка {origin.Line} продублирована.";
         }
@@ -178,7 +202,11 @@ internal sealed partial class GlobalModuleJump
         }
         var (declaration,lastLine)=method.Value;
         if(action==NavAction.InspectMethod)
-            return $"{declaration.Kind} {declaration.Name}, строки {declaration.Line}–{lastLine} ({lastLine-declaration.Line+1}).";
+        {
+            string details=$"{declaration.Kind} {declaration.Name}, строки {declaration.Line}–{lastLine} ({lastLine-declaration.Line+1}).";
+            ShowSignature(origin,details);
+            return details;
+        }
 
         if(action is NavAction.SelectMethod or NavAction.SelectDocumentedMethod)
         {
